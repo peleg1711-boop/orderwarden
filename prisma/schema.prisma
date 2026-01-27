@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id              String    @id @default(cuid())
+  orderId         String    @unique
+  trackingNumber  String
+  carrier         String?
+  
+  lastStatus      String?
+  lastUpdateAt    DateTime?
+  riskLevel       String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([orderId])
+  @@index([trackingNumber])
+}
+
+model MessageTemplate {
+  id          String   @id @default(cuid())
+  orderId     String
+  status      String
+  riskLevel   String
+  message     String   @db.Text
+  sentAt      DateTime @default(now())
+  
+  @@index([orderId])
+}

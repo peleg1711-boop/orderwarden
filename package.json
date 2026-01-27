@@ -1,0 +1,20 @@
+{
+  "name": "orderguard",
+  "version": "0.1.0",
+  "description": "OrderGuard backend for Etsy order tracking and refund prevention",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "prisma": "prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "prisma": "6.19.2"
+  }
+}
