@@ -5,13 +5,24 @@ import { UserButton } from '@clerk/nextjs';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+interface Order {
+  id: string;
+  orderId: string;
+  trackingNumber: string;
+  carrier: string | null;
+  lastStatus: string | null;
+  lastUpdateAt: string | null;
+  riskLevel: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function DashboardPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddOrder, setShowAddOrder] = useState(false);
 
-  // Load orders on mount
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -38,12 +49,10 @@ export default function DashboardPage() {
       });
       const data = await response.json();
       
-      // Update the order in the list
       setOrders(orders.map(order => 
         order.id === orderId ? data.order : order
       ));
       
-      // Show the recommended message
       if (data.recommendedMessage) {
         alert(`Recommended Message:\n\n${data.recommendedMessage.message}`);
       }
@@ -53,8 +62,10 @@ export default function DashboardPage() {
     }
   };
 
-  const getRiskColor = (riskLevel: string | null | undefined) => {
-    switch (riskLevel?.toLowerCase()) {
+  const getRiskColor = (riskLevel: string | null | undefined): string => {
+    if (!riskLevel) return 'bg-gray-100 text-gray-800';
+    
+    switch (riskLevel.toLowerCase()) {
       case 'green': return 'bg-green-100 text-green-800';
       case 'yellow': return 'bg-yellow-100 text-yellow-800';
       case 'red': return 'bg-red-100 text-red-800';
@@ -63,7 +74,7 @@ export default function DashboardPage() {
   };
 
   const getStatusBadge = (status: string | null) => {
-    const statusMap = {
+    const statusMap: Record<string, { label: string; color: string }> = {
       'pre_transit': { label: 'Pre-Transit', color: 'bg-blue-100 text-blue-800' },
       'in_transit': { label: 'In Transit', color: 'bg-blue-100 text-blue-800' },
       'out_for_delivery': { label: 'Out for Delivery', color: 'bg-green-100 text-green-800' },
@@ -73,7 +84,7 @@ export default function DashboardPage() {
       'unknown': { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
     };
     
-    const info = statusMap[status] || statusMap['unknown'];
+    const info = statusMap[status || 'unknown'] || statusMap['unknown'];
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${info.color}`}>{info.label}</span>;
   };
 
@@ -90,7 +101,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -105,14 +115,12 @@ export default function DashboardPage() {
               >
                 + Add Order
               </button>
-              {/* Clerk User Button - shows profile pic and sign out */}
               <UserButton afterSignOutUrl="/sign-in" />
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -120,13 +128,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="Total Orders"
-            value={orders.length}
-            color="blue"
-          />
+          <StatCard label="Total Orders" value={orders.length} color="blue" />
           <StatCard
             label="At Risk"
             value={orders.filter(o => o.riskLevel === 'red' || o.riskLevel === 'yellow').length}
@@ -144,7 +147,6 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Orders Table */}
         {orders.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="text-gray-400 mb-4">
@@ -166,24 +168,12 @@ export default function DashboardPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Order ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tracking
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Risk
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Update
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Update</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -204,18 +194,13 @@ export default function DashboardPage() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase ${getRiskColor(order.riskLevel)}`}>
                           {order.riskLevel}
                         </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      ) : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => checkTracking(order.id)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
+                      <button onClick={() => checkTracking(order.id)} className="text-blue-600 hover:text-blue-900">
                         Check Tracking
                       </button>
                     </td>
@@ -227,7 +212,6 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Add Order Modal */}
       {showAddOrder && (
         <AddOrderModal
           onClose={() => setShowAddOrder(false)}
@@ -242,7 +226,7 @@ export default function DashboardPage() {
 }
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
     yellow: 'bg-yellow-50 text-yellow-600',
@@ -266,7 +250,7 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -284,7 +268,7 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 
       onSuccess();
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -310,9 +294,7 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Etsy Order ID *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Etsy Order ID *</label>
             <input
               type="text"
               required
@@ -324,9 +306,7 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tracking Number *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tracking Number *</label>
             <input
               type="text"
               required
@@ -338,9 +318,7 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Carrier (optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Carrier (optional)</label>
             <select
               value={formData.carrier}
               onChange={(e) => setFormData({ ...formData, carrier: e.target.value })}
