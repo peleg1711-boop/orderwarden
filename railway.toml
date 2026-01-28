@@ -8,4 +8,4 @@ healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 
 [service]
-name = "orderguard-api"
+name = "orderwarden-api"

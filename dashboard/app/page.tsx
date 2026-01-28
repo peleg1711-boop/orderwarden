@@ -48,11 +48,11 @@ export default function DashboardPage() {
         method: 'POST'
       });
       const data = await response.json();
-      
-      setOrders(orders.map(order => 
+
+      setOrders(orders.map(order =>
         order.id === orderId ? data.order : order
       ));
-      
+
       if (data.recommendedMessage) {
         alert(`Recommended Message:\n\n${data.recommendedMessage.message}`);
       }
@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   const getRiskColor = (riskLevel: string | null | undefined): string => {
     if (!riskLevel) return 'bg-gray-100 text-gray-800';
-    
+
     switch (riskLevel.toLowerCase()) {
       case 'green': return 'bg-green-100 text-green-800';
       case 'yellow': return 'bg-yellow-100 text-yellow-800';
@@ -83,7 +83,7 @@ export default function DashboardPage() {
       'delivery_failed': { label: 'Failed', color: 'bg-red-100 text-red-800' },
       'unknown': { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
     };
-    
+
     const info = statusMap[status || 'unknown'] || statusMap['unknown'];
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${info.color}`}>{info.label}</span>;
   };
@@ -105,7 +105,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">OrderGuard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">OrderWarden</h1>
               <p className="text-sm text-gray-500">Protect your Etsy shop from refunds</p>
             </div>
             <div className="flex items-center gap-4">

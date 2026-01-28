@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs'
 
 export const metadata: Metadata = {
-  title: 'OrderGuard - Etsy Order Protection',
+  title: 'OrderWarden - Etsy Order Protection',
   description: 'Protect your Etsy shop from refunds and disputes with intelligent tracking monitoring',
 }
 

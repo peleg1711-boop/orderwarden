@@ -22,9 +22,9 @@ app.use((req, res, next) => {
 
 // Health check
 app.get("/", (req, res) => {
-  res.json({ 
-    status: "ok", 
-    service: "OrderGuard API",
+  res.json({
+    status: "ok",
+    service: "OrderWarden API",
     timestamp: new Date().toISOString()
   });
 });
@@ -45,7 +45,7 @@ app.use("/api/orders", require("./routes/orders"));
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: "Not found",
     path: req.path
   });
@@ -54,7 +54,7 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error("Express error:", err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: "Internal server error",
     message: err.message
   });

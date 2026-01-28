@@ -1,7 +1,7 @@
 {
-  "name": "orderguard",
+  "name": "orderwarden",
   "version": "0.1.0",
-  "description": "OrderGuard backend for Etsy order tracking and refund prevention",
+  "description": "OrderWarden backend for Etsy order tracking and refund prevention",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",

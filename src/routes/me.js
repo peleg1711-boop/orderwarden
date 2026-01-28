@@ -17,7 +17,7 @@ router.get("/me/store", async (req, res, next) => {
       update: {},
       create: {
         id: clerkUserId,
-        email: `${clerkUserId}@orderguard.local`,
+        email: `${clerkUserId}@orderwarden.local`,
       },
       select: { id: true },
     });

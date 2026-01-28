@@ -3,7 +3,7 @@ import Link from "next/link";
 const TopNav = () => {
   return (
     <header className="top-nav">
-      <div className="logo">OrderGuard</div>
+      <div className="logo">OrderWarden</div>
       <nav className="nav-links">
         <Link href="/dashboard">Dashboard</Link>
         <Link href="/orders">Orders</Link>

@@ -1,4 +1,4 @@
-# OrderGuard
+# OrderWarden
 Etsy order tracking and refund prevention tool.
 
 ## Local development
@@ -10,7 +10,7 @@ npm install
 Create a `.env` file and set `DATABASE_URL` for PostgreSQL:
 
 ```bash
-DATABASE_URL="postgresql://user:password@localhost:5432/orderguard"
+DATABASE_URL="postgresql://user:password@localhost:5432/orderwarden"
 ```
 
 Run Prisma migrations and generate the client:

@@ -4,8 +4,8 @@ import TopNav from "../components/TopNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OrderGuard",
-  description: "OrderGuard dashboard"
+  title: "OrderWarden",
+  description: "OrderWarden dashboard"
 };
 
 export default function RootLayout({
