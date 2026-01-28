@@ -1,0 +1,1 @@
+self.__BUILD_MANIFEST = {__rewrites:{afterFiles:[{has:[{type:"header",key:"accept",value:"(.*text\u002Fhtml.*)"}],source:"\u002F",destination:"\u002Findex.html"}],beforeFiles:[],fallback:[]},sortedPages:["\u002F_app"]};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()
