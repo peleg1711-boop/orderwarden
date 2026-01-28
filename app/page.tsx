@@ -264,7 +264,7 @@ function AddOrderModal({ onClose, onSuccess }) {
     carrier: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
