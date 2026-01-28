@@ -7,21 +7,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id
+  email     String   @unique
+  stores    Store[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  platform  String
+  storeName String
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model Order {
   id              String    @id @default(cuid())
+  storeId         String?
+  store           Store?    @relation(fields: [storeId], references: [id])
   orderId         String    @unique
   trackingNumber  String
   carrier         String?
-  
+
   lastStatus      String?
   lastUpdateAt    DateTime?
   riskLevel       String?
-  
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  
+
   @@index([orderId])
   @@index([trackingNumber])
+  @@index([storeId])
 }
 
 model MessageTemplate {

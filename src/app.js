@@ -9,8 +9,11 @@ app.use(express.urlencoded({ extended: true }));
 // CORS (if needed for frontend)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-clerk-user-id");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
   next();
 });
 
@@ -42,6 +45,7 @@ app.get("/debug/env", (req, res) => {
 
 // ⚠️ CRITICAL: Routes must be mounted - DO NOT COMMENT OUT
 app.use("/api/orders", require("./routes/orders"));
+app.use("/api", require("./routes/me"));
 
 // 404 handler
 app.use((req, res) => {

@@ -10,10 +10,13 @@ const { checkTrackingStatus } = require("../services/trackingService");
 // Import message templates helper
 const { getMessageTemplate } = require("../utils/messageTemplates");
 
-// GET /api/orders - List all orders
+// GET /api/orders - List all orders (optionally filtered by storeId)
 router.get("/", async (req, res) => {
   try {
+    const { storeId } = req.query;
+
     const orders = await prisma.order.findMany({
+      where: storeId ? { storeId } : undefined,
       orderBy: { createdAt: "desc" }
     });
     res.json({ orders });
@@ -45,25 +48,26 @@ router.get("/:id", async (req, res) => {
 // POST /api/orders - Create new order
 router.post("/", async (req, res) => {
   try {
-    const { orderId, trackingNumber, carrier } = req.body;
-    
+    const { orderId, trackingNumber, carrier, storeId } = req.body;
+
     // Validation
     if (!orderId || !trackingNumber) {
-      return res.status(400).json({ 
-        error: "orderId and trackingNumber are required" 
+      return res.status(400).json({
+        error: "orderId and trackingNumber are required"
       });
     }
-    
+
     // Create order
     const order = await prisma.order.create({
       data: {
         orderId,
         trackingNumber,
         carrier: carrier || null,
+        storeId: storeId || null,
         riskLevel: "green" // Default to green until first check
       }
     });
-    
+
     console.log(`[Orders] Created order ${order.id} for Etsy order ${orderId}`);
     res.status(201).json({ order });
     
