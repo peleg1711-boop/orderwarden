@@ -26,7 +26,7 @@ export default function LandingPage() {
               Track every order. Spot delivery issues before they become refunds.<br/>
               Save your shop from bad reviews and disputes.
             </p>
-            <Link href="/sign-up" className="cta">
+            <Link href="https://orderwarden.com/sign-up" className="cta">
               Start Free Trial →
             </Link>
           </div>
