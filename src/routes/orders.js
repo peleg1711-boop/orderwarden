@@ -1,8 +1,7 @@
-// routes/orders.js - FIXED VERSION
+// routes/orders.js - Per-user filtering enabled
 const express = require("express");
 const router = express.Router();
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../db/prisma");
 
 // Import tracking service
 const { checkTrackingStatus } = require("../services/trackingService");
@@ -10,15 +9,44 @@ const { checkTrackingStatus } = require("../services/trackingService");
 // Import message templates helper
 const { getMessageTemplate } = require("../utils/messageTemplates");
 
-// GET /api/orders - List all orders (optionally filtered by storeId)
+// Helper: Get authenticated user ID from Clerk
+function getAuthUserId(req) {
+  return req.auth?.userId || req.headers["x-clerk-user-id"] || null;
+}
+
+// Helper: Get all store IDs belonging to a user
+async function getUserStoreIds(userId) {
+  const stores = await prisma.store.findMany({
+    where: { userId },
+    select: { id: true }
+  });
+  return stores.map(s => s.id);
+}
+
+// GET /api/orders - List orders for authenticated user only
 router.get("/", async (req, res) => {
   try {
-    const { storeId } = req.query;
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const storeIds = await getUserStoreIds(userId);
+
+    // Auto-assign orphaned orders (no storeId) to user's default store
+    const defaultStoreId = storeIds[0];
+    if (defaultStoreId) {
+      await prisma.order.updateMany({
+        where: { storeId: null },
+        data: { storeId: defaultStoreId }
+      });
+    }
 
     const orders = await prisma.order.findMany({
-      where: storeId ? { storeId } : undefined,
+      where: { storeId: { in: storeIds } },
       orderBy: { createdAt: "desc" }
     });
+
     res.json({ orders });
   } catch (error) {
     console.error("[Orders] List error:", error);
@@ -26,18 +54,28 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/orders/:id - Get single order
+// GET /api/orders/:id - Get single order (only if user owns it)
 router.get("/:id", async (req, res) => {
   try {
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const storeIds = await getUserStoreIds(userId);
     const { id } = req.params;
-    const order = await prisma.order.findUnique({
-      where: { id }
+
+    const order = await prisma.order.findFirst({
+      where: {
+        id,
+        storeId: { in: storeIds }
+      }
     });
-    
+
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
-    
+
     res.json({ order });
   } catch (error) {
     console.error("[Orders] Get error:", error);
@@ -45,9 +83,14 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST /api/orders - Create new order
+// POST /api/orders - Create new order (authenticated, auto-assigns to user's store)
 router.post("/", async (req, res) => {
   try {
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
     const { orderId, trackingNumber, carrier, storeId } = req.body;
 
     // Validation
@@ -57,56 +100,79 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const storeIds = await getUserStoreIds(userId);
+
+    // Determine which store to use
+    let assignedStoreId = storeId;
+    if (storeId) {
+      // Verify user owns this store
+      if (!storeIds.includes(storeId)) {
+        return res.status(403).json({ error: "You don't own this store" });
+      }
+    } else {
+      // Auto-assign to user's default store
+      assignedStoreId = storeIds[0] || null;
+    }
+
     // Create order
     const order = await prisma.order.create({
       data: {
         orderId,
         trackingNumber,
         carrier: carrier || null,
-        storeId: storeId || null,
+        storeId: assignedStoreId,
         riskLevel: "green" // Default to green until first check
       }
     });
 
-    console.log(`[Orders] Created order ${order.id} for Etsy order ${orderId}`);
+    console.log(`[Orders] Created order ${order.id} for Etsy order ${orderId} (user: ${userId})`);
     res.status(201).json({ order });
-    
+
   } catch (error) {
     console.error("[Orders] Create error:", error);
-    
+
     // Handle duplicate orderId
     if (error.code === "P2002") {
-      return res.status(409).json({ 
-        error: "Order with this orderId already exists" 
+      return res.status(409).json({
+        error: "Order with this orderId already exists"
       });
     }
-    
+
     res.status(500).json({ error: "Failed to create order" });
   }
 });
 
-// POST /api/orders/:id/check - Check tracking and update risk
+// POST /api/orders/:id/check - Check tracking and update risk (only if user owns it)
 router.post("/:id/check", async (req, res) => {
   try {
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const storeIds = await getUserStoreIds(userId);
     const { id } = req.params;
-    
-    console.log(`[Orders] Checking tracking for order ${id}`);
-    
-    // 1. Get order
-    const order = await prisma.order.findUnique({
-      where: { id }
+
+    console.log(`[Orders] Checking tracking for order ${id} (user: ${userId})`);
+
+    // 1. Get order (only if user owns it)
+    const order = await prisma.order.findFirst({
+      where: {
+        id,
+        storeId: { in: storeIds }
+      }
     });
-    
+
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
-    
+
     // 2. Check tracking status
     console.log(`[Orders] Fetching tracking for ${order.trackingNumber}`);
     const trackingResult = await checkTrackingStatus(order.trackingNumber, order.carrier);
-    
+
     console.log(`[Orders] Tracking result - Status: ${trackingResult.status}, Risk: ${trackingResult.riskLevel}`);
-    
+
     // 3. Update database with tracking info
     const updatedOrder = await prisma.order.update({
       where: { id },
@@ -117,16 +183,16 @@ router.post("/:id/check", async (req, res) => {
         carrier: trackingResult.carrier || order.carrier // Update carrier if detected
       }
     });
-    
+
     // 4. Get recommended message template
     const recommendedMessage = getMessageTemplate(
       trackingResult.status,
       trackingResult.riskLevel,
       order.orderId
     );
-    
+
     console.log(`[Orders] Updated order ${id} - Risk: ${updatedOrder.riskLevel}`);
-    
+
     // 5. Return everything
     res.json({
       order: updatedOrder,
@@ -139,35 +205,53 @@ router.post("/:id/check", async (req, res) => {
       },
       recommendedMessage
     });
-    
+
   } catch (error) {
     console.error("[Orders] Check error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to check tracking",
-      details: error.message 
+      details: error.message
     });
   }
 });
 
-// DELETE /api/orders/:id - Delete order (for testing)
+// DELETE /api/orders/:id - Delete order (only if user owns it)
 router.delete("/:id", async (req, res) => {
   try {
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const storeIds = await getUserStoreIds(userId);
     const { id } = req.params;
-    
+
+    // Verify user owns this order before deleting
+    const order = await prisma.order.findFirst({
+      where: {
+        id,
+        storeId: { in: storeIds }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
     await prisma.order.delete({
       where: { id }
     });
-    
-    console.log(`[Orders] Deleted order ${id}`);
+
+    console.log(`[Orders] Deleted order ${id} (user: ${userId})`);
     res.json({ success: true });
-    
+
   } catch (error) {
     console.error("[Orders] Delete error:", error);
-    
+
     if (error.code === "P2025") {
       return res.status(404).json({ error: "Order not found" });
     }
-    
+
     res.status(500).json({ error: "Failed to delete order" });
   }
 });
