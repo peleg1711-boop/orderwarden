@@ -18,6 +18,67 @@ interface Order {
   updatedAt: string;
 }
 
+function DeliveryRiskOverview({ orders }: { orders: Order[] }) {
+  const healthyCount = orders.filter(o => o.riskLevel === 'green').length;
+  const attentionCount = orders.filter(o => o.riskLevel === 'yellow').length;
+  const highRiskCount = orders.filter(o => o.riskLevel === 'red').length;
+  const total = orders.length || 1;
+
+  const atRiskOrders = orders
+    .filter(o => o.riskLevel === 'yellow' || o.riskLevel === 'red')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
+
+  const ProgressBar = ({ label, count, total, color }: { label: string, count: number, total: number, color: string }) => (
+    <div>
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-sm font-bold text-slate-300">{label}</span>
+        <span className="text-sm font-bold text-white">{count}</span>
+      </div>
+      <div className="w-full bg-slate-700 rounded-full h-2.5">
+        <div className={`${color} h-2.5 rounded-full`} style={{ width: `${(count / total) * 100}%` }}></div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-slate-800/50 rounded-2xl shadow-xl p-6 border-2 border-slate-700 backdrop-blur-sm h-full">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold text-white">Delivery Risk Overview</h3>
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+        </span>
+      </div>
+      <div className="space-y-4 mb-6">
+        <ProgressBar label="Healthy" count={healthyCount} total={total} color="bg-gradient-to-r from-emerald-500 to-green-600" />
+        <ProgressBar label="Needs attention" count={attentionCount} total={total} color="bg-gradient-to-r from-amber-500 to-yellow-600" />
+        <ProgressBar label="High risk" count={highRiskCount} total={total} color="bg-gradient-to-r from-red-500 to-rose-600" />
+      </div>
+      <div>
+        <h4 className="text-sm font-bold text-slate-300 mb-3">Recent At-Risk Orders</h4>
+        <div className="space-y-3">
+          {atRiskOrders.length > 0 ? atRiskOrders.map(order => (
+            <div key={order.id} className="flex items-center p-2 rounded-lg hover:bg-slate-700/50 transition-colors">
+              <span className={`h-3 w-3 rounded-full mr-3 ${order.riskLevel === 'red' ? 'bg-red-500' : 'bg-amber-400'}`}></span>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-white">{order.orderId}</p>
+                <p className="text-xs text-slate-400">{order.lastStatus || 'Unknown'}</p>
+              </div>
+              <span className={`text-xs font-bold ${order.riskLevel === 'red' ? 'text-red-400' : 'text-amber-300'}`}>
+                {order.riskLevel === 'red' ? 'Urgent' : 'Follow up'}
+              </span>
+            </div>
+          )) : (
+            <p className="text-sm text-slate-400">No at-risk orders right now. Great job!</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function DashboardPage() {
   const { isLoaded, isSignedIn } = useUser();
 
@@ -170,32 +231,36 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              label="Total Orders"
-              value={orders.length}
-              icon="📦"
-              color="from-blue-500 to-sky-600"
-            />
-            <StatCard
-              label="At Risk"
-              value={orders.filter(o => o.riskLevel === 'red' || o.riskLevel === 'yellow').length}
-              icon="⚠️"
-              color="from-amber-500 to-yellow-600"
-            />
-            <StatCard
-              label="In Transit"
-              value={orders.filter(o => o.lastStatus === 'in_transit').length}
-              icon="🚚"
-              color="from-indigo-500 to-purple-600"
-            />
-            <StatCard
-              label="Delivered"
-              value={orders.filter(o => o.lastStatus === 'delivered').length}
-              icon="✅"
-              color="from-emerald-500 to-green-600"
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
+                <StatCard
+                  label="Total Orders"
+                  value={orders.length}
+                  icon="📦"
+                  color="from-blue-500 to-sky-600"
+                />
+                <StatCard
+                  label="At Risk"
+                  value={orders.filter(o => o.riskLevel === 'red' || o.riskLevel === 'yellow').length}
+                  icon="⚠️"
+                  color="from-amber-500 to-yellow-600"
+                />
+                <StatCard
+                  label="In Transit"
+                  value={orders.filter(o => o.lastStatus === 'in_transit').length}
+                  icon="🚚"
+                  color="from-indigo-500 to-purple-600"
+                />
+                <StatCard
+                  label="Delivered"
+                  value={orders.filter(o => o.lastStatus === 'delivered').length}
+                  icon="✅"
+                  color="from-emerald-500 to-green-600"
+                />
+            </div>
+            <div className="lg:col-span-2">
+                <DeliveryRiskOverview orders={orders} />
+            </div>
           </div>
 
           {/* Orders Table */}
