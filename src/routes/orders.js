@@ -23,6 +23,40 @@ async function getUserStoreIds(userId) {
   return stores.map(s => s.id);
 }
 
+// Helper: Ensure user and store exist, then return store IDs
+async function ensureUserAndGetStoreIds(userId) {
+  // Upsert user (same pattern as /api/me/store)
+  await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: {
+      id: userId,
+      email: `${userId}@orderwarden.local`,
+    },
+  });
+
+  // Find existing stores
+  let stores = await prisma.store.findMany({
+    where: { userId },
+    select: { id: true }
+  });
+
+  // Auto-create default store if none exists
+  if (stores.length === 0) {
+    const newStore = await prisma.store.create({
+      data: {
+        userId,
+        platform: "etsy",
+        storeName: "My Store",
+      },
+      select: { id: true },
+    });
+    stores = [newStore];
+  }
+
+  return stores.map(s => s.id);
+}
+
 // GET /api/orders - List orders for authenticated user only
 router.get("/", async (req, res) => {
   try {
@@ -100,7 +134,8 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const storeIds = await getUserStoreIds(userId);
+    // Ensure user and store exist (auto-creates if missing)
+    const storeIds = await ensureUserAndGetStoreIds(userId);
 
     // Determine which store to use
     let assignedStoreId = storeId;
@@ -111,7 +146,7 @@ router.post("/", async (req, res) => {
       }
     } else {
       // Auto-assign to user's default store
-      assignedStoreId = storeIds[0] || null;
+      assignedStoreId = storeIds[0];
     }
 
     // Create order
