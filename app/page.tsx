@@ -72,13 +72,13 @@ export default function DashboardPage() {
   };
 
   const getRiskColor = (riskLevel: string | null | undefined): string => {
-    if (!riskLevel) return 'bg-gray-100 text-gray-700';
+    if (!riskLevel) return 'bg-gray-700 text-gray-300';
     
     switch (riskLevel.toLowerCase()) {
       case 'green': return 'bg-emerald-500 text-white';
       case 'yellow': return 'bg-amber-400 text-gray-900';
       case 'red': return 'bg-red-500 text-white';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-gray-700 text-gray-300';
     }
   };
 
@@ -99,9 +99,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
           <p className="text-white text-xl font-bold">Loading your orders...</p>
         </div>
       </div>
@@ -120,25 +120,38 @@ export default function DashboardPage() {
         h1, h2, h3, h4, h5, h6 {
           font-family: 'Syne', sans-serif;
         }
+        .animate-fadeInUp {
+          animation: fadeInUp 0.5s ease-out forwards;
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
       `}</style>
       
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">
         {/* Header */}
-        <header className="bg-gradient-to-r from-red-600 to-red-700 border-b-4 border-red-800 shadow-xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <header className="bg-slate-900/50 backdrop-blur-lg border-b border-slate-700 shadow-xl sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-black text-white tracking-tight">OrderWarden</h1>
-                <p className="text-red-100 text-sm font-medium mt-1">Protecting your Etsy shop</p>
+                <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-blue-400 to-emerald-400 text-transparent bg-clip-text">OrderWarden</h1>
+                <p className="text-slate-400 text-sm font-medium mt-1">Protecting your Etsy shop</p>
               </div>
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowAddOrder(true)}
-                  className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-full font-bold text-base hover:bg-yellow-300 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-full font-bold text-base hover:bg-blue-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
                 >
                   + Add Order
                 </button>
-                <div className="bg-white rounded-full p-1 shadow-lg">
+                <div className="bg-slate-700 rounded-full p-1 shadow-lg">
                   <UserButton afterSignOutUrl="https://landing.orderwarden.com" />
                 </div>
               </div>
@@ -147,9 +160,9 @@ export default function DashboardPage() {
         </header>
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeInUp">
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 text-red-800 px-6 py-4 rounded-lg mb-6 shadow-md">
+            <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 px-6 py-4 rounded-lg mb-6 shadow-md backdrop-blur-sm">
               <div className="flex items-center">
                 <span className="text-2xl mr-3">⚠️</span>
                 <span className="font-semibold">{error}</span>
@@ -163,84 +176,84 @@ export default function DashboardPage() {
               label="Total Orders"
               value={orders.length}
               icon="📦"
-              color="from-blue-500 to-blue-600"
+              color="from-blue-500 to-sky-600"
             />
             <StatCard
               label="At Risk"
               value={orders.filter(o => o.riskLevel === 'red' || o.riskLevel === 'yellow').length}
               icon="⚠️"
-              color="from-yellow-400 to-yellow-500"
+              color="from-amber-500 to-yellow-600"
             />
             <StatCard
               label="In Transit"
               value={orders.filter(o => o.lastStatus === 'in_transit').length}
               icon="🚚"
-              color="from-blue-500 to-blue-600"
+              color="from-indigo-500 to-purple-600"
             />
             <StatCard
               label="Delivered"
               value={orders.filter(o => o.lastStatus === 'delivered').length}
               icon="✅"
-              color="from-emerald-500 to-emerald-600"
+              color="from-emerald-500 to-green-600"
             />
           </div>
 
           {/* Orders Table */}
           {orders.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-xl p-16 text-center border-2 border-gray-100">
+            <div className="bg-slate-800/50 rounded-2xl shadow-xl p-16 text-center border-2 border-slate-700 backdrop-blur-sm">
               <div className="text-6xl mb-6">📭</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">No orders yet</h3>
-              <p className="text-gray-600 text-lg mb-6 max-w-md mx-auto">
+              <h3 className="text-2xl font-bold text-white mb-3">No orders yet</h3>
+              <p className="text-slate-400 text-lg mb-6 max-w-md mx-auto">
                 Add your first order to start tracking deliveries and preventing refunds
               </p>
               <button
                 onClick={() => setShowAddOrder(true)}
-                className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-4 rounded-full font-bold text-lg hover:from-red-700 hover:to-red-800 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-2xl"
+                className="bg-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
               >
                 Add Your First Order
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-2 border-gray-100">
+            <div className="bg-slate-800/50 rounded-2xl shadow-xl overflow-hidden border-2 border-slate-700 backdrop-blur-sm">
               <div className="overflow-x-auto">
                 <table className="min-w-full">
-                  <thead className="bg-gradient-to-r from-gray-800 to-gray-900">
+                  <thead className="bg-slate-900">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Order</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Tracking</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Risk</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Last Update</th>
-                      <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Order</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Tracking</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Risk</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Last Update</th>
+                      <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-700">
                     {orders.map((order) => (
-                      <tr key={order.id} className="hover:bg-red-50 transition-colors duration-150">
+                      <tr key={order.id} className="hover:bg-slate-700/50 transition-colors duration-150">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-bold text-gray-900 text-base">{order.orderId}</div>
-                          <div className="text-sm text-gray-500 font-medium">{order.carrier || 'Unknown carrier'}</div>
+                          <div className="font-bold text-white text-base">{order.orderId}</div>
+                          <div className="text-sm text-slate-400 font-medium">{order.carrier || 'Unknown carrier'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 font-mono font-semibold">{order.trackingNumber}</div>
+                          <div className="text-sm text-slate-300 font-mono font-semibold">{order.trackingNumber}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {order.lastStatus ? getStatusBadge(order.lastStatus) : <span className="text-gray-400 font-medium">—</span>}
+                          {order.lastStatus ? getStatusBadge(order.lastStatus) : <span className="text-slate-500 font-medium">—</span>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {order.riskLevel ? (
                             <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${getRiskColor(order.riskLevel)}`}>
                               {order.riskLevel}
                             </span>
-                          ) : <span className="text-gray-400 font-medium">—</span>}
+                          ) : <span className="text-slate-500 font-medium">—</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 font-medium">
                           {order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
                           <button
                             onClick={() => checkTracking(order.id)}
-                            className="text-red-600 hover:text-red-800 hover:underline font-bold"
+                            className="text-blue-400 hover:text-blue-300 hover:underline font-bold"
                           >
                             Check Tracking →
                           </button>
@@ -271,12 +284,12 @@ export default function DashboardPage() {
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
   return (
-    <div className={`bg-gradient-to-br ${color} rounded-2xl shadow-lg p-6 transform hover:scale-105 transition-all duration-200 hover:shadow-2xl`}>
+    <div className={`bg-gradient-to-br ${color} rounded-2xl shadow-lg p-6 transform hover:scale-105 transition-all duration-300 hover:shadow-2xl backdrop-blur-sm border border-white/10`}>
       <div className="flex items-center justify-between mb-2">
         <div className="text-3xl">{icon}</div>
         <div className={`text-4xl font-black text-white`}>{value}</div>
       </div>
-      <div className="text-sm font-bold text-white opacity-90 uppercase tracking-wide">{label}</div>
+      <div className="text-sm font-bold text-white/80 uppercase tracking-wide">{label}</div>
     </div>
   );
 }
@@ -315,11 +328,11 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 transform animate-scale-in">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeInUp">
+      <div className="bg-slate-800 rounded-3xl shadow-2xl max-w-lg w-full p-8 transform border border-slate-700">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-black text-gray-900">Add New Order</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <h2 className="text-3xl font-black text-white">Add New Order</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -327,14 +340,14 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-3 rounded-lg mb-6">
+          <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6">
             <p className="font-semibold">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
+            <label className="block text-sm font-bold text-slate-300 mb-2">
               Etsy Order ID *
             </label>
             <input
@@ -342,13 +355,13 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               required
               value={formData.orderId}
               onChange={(e) => setFormData({ ...formData, orderId: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-red-200 focus:border-red-500 font-medium transition-all"
+              className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-700 text-white rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 font-medium transition-all"
               placeholder="e.g., 1234567890"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
+            <label className="block text-sm font-bold text-slate-300 mb-2">
               Tracking Number *
             </label>
             <input
@@ -356,19 +369,19 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               required
               value={formData.trackingNumber}
               onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-red-200 focus:border-red-500 font-mono font-medium transition-all"
+              className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-700 text-white rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 font-mono font-medium transition-all"
               placeholder="e.g., 1Z999AA10123456784"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
+            <label className="block text-sm font-bold text-slate-300 mb-2">
               Carrier (optional)
             </label>
             <select
               value={formData.carrier}
               onChange={(e) => setFormData({ ...formData, carrier: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-red-200 focus:border-red-500 font-medium transition-all"
+              className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-700 text-white rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 font-medium transition-all"
             >
               <option value="">Auto-detect</option>
               <option value="USPS">USPS</option>
@@ -382,14 +395,14 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-50 transition-all"
+              className="flex-1 px-6 py-3 border-2 border-slate-700 rounded-xl text-slate-300 font-bold hover:bg-slate-700 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg hover:shadow-blue-500/50"
             >
               {loading ? 'Adding...' : 'Add Order'}
             </button>

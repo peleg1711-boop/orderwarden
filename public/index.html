@@ -1,635 +1,889 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OrderWarden - Stop Losing Money on Etsy Refunds</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Bricolage+Grotesque:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8">
+<title>OrderWarden - Prevent Etsy Refunds with Smart Tracking</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    :root {
-      --primary: #FF3B30;
-      --primary-dark: #D32F2F;
-      --secondary: #FFD60A;
-      --dark: #0A0A0A;
-      --light: #FAFAFA;
-      --gray: #6B7280;
-      --accent-green: #34D399;
-    }
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    body {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      background: var(--light);
-      color: var(--dark);
-      overflow-x: hidden;
-      line-height: 1.6;
-    }
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-    /* Hero Section */
-    .hero {
-      min-height: 100vh;
-      background: linear-gradient(135deg, #FF3B30 0%, #D32F2F 100%);
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      padding: 2rem;
-    }
+:root {
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255,255,255,0.7);
+  --accent-blue: #3B82F6;
+  --accent-green: #22C55E;
+  --accent-amber: #F59E0B;
+  --accent-red: #EF4444;
+}
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: 
-        radial-gradient(circle at 20% 50%, rgba(255, 214, 10, 0.2) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-      animation: pulse 8s ease-in-out infinite;
-    }
+body {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.8; }
-    }
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-    .hero-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      position: relative;
-      z-index: 2;
-    }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
-    .nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 0 4rem 0;
-      animation: slideDown 0.8s ease-out;
-    }
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
-    @keyframes slideDown {
-      from { transform: translateY(-20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
-    .logo {
-      font-family: 'Syne', sans-serif;
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: white;
-      letter-spacing: -0.02em;
-    }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
 
-    .nav-cta {
-      background: white;
-      color: var(--primary);
-      padding: 0.75rem 2rem;
-      border-radius: 50px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
+.animate-fadeInUp {
+  animation: fadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+}
 
-    .nav-cta:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-    }
+.animate-delay-1 { animation-delay: 0.1s; }
+.animate-delay-2 { animation-delay: 0.2s; }
+.animate-delay-3 { animation-delay: 0.3s; }
+.animate-delay-4 { animation-delay: 0.4s; }
 
-    h1 {
-      font-family: 'Syne', sans-serif;
-      font-size: clamp(2.5rem, 8vw, 5.5rem);
-      font-weight: 800;
-      color: white;
-      line-height: 1.1;
-      margin-bottom: 1.5rem;
-      letter-spacing: -0.03em;
-      animation: fadeInUp 1s ease-out 0.2s both;
-    }
+/* Hero Section */
+.hero {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px circle at 20% 10%, rgba(59,130,246,0.18) 0%, transparent 55%),
+    radial-gradient(900px circle at 80% 30%, rgba(34,197,94,0.10) 0%, transparent 55%),
+    linear-gradient(180deg, #0B1220 0%, #0F172A 100%);
+  padding: 2.5rem 2rem;
+  position: relative;
+}
 
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+.hero-content {
+  max-width: 1200px;
+  margin: auto;
+}
 
-    .hero-subtitle {
-      font-size: clamp(1.25rem, 3vw, 1.75rem);
-      color: rgba(255,255,255,0.95);
-      margin-bottom: 2.5rem;
-      font-weight: 500;
-      animation: fadeInUp 1s ease-out 0.4s both;
-    }
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rem;
+}
 
-    .hero-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--secondary);
-      color: var(--dark);
-      padding: 1.25rem 3rem;
-      font-size: 1.25rem;
-      font-weight: 700;
-      border-radius: 50px;
-      text-decoration: none;
-      transition: all 0.3s;
-      box-shadow: 0 10px 40px rgba(255, 214, 10, 0.4);
-      animation: fadeInUp 1s ease-out 0.6s both, float 3s ease-in-out 2s infinite;
-    }
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  animation: fadeIn 0.6s ease-out;
+}
 
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
+.nav-actions {
+  display: flex;
+  gap: 1rem;
+  animation: fadeIn 0.6s ease-out 0.2s both;
+}
 
-    .hero-cta:hover {
-      transform: scale(1.05) translateY(-3px);
-      box-shadow: 0 15px 50px rgba(255, 214, 10, 0.5);
-    }
+.nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  transition: all 0.3s;
+}
 
-    .social-proof {
-      margin-top: 3rem;
-      display: flex;
-      align-items: center;
-      gap: 2rem;
-      flex-wrap: wrap;
-      animation: fadeInUp 1s ease-out 0.8s both;
-    }
+.nav-link:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
 
-    .stat {
-      color: white;
-    }
+.nav-cta {
+  background: white;
+  color: var(--bg-primary);
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.3s;
+}
 
-    .stat-number {
-      font-size: 2.5rem;
-      font-weight: 800;
-      font-family: 'Syne', sans-serif;
-    }
+.nav-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(255,255,255,0.15);
+}
 
-    .stat-label {
-      opacity: 0.9;
-      font-size: 0.95rem;
-    }
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 3rem;
+  align-items: center;
+}
 
-    /* Problem Section */
-    .section {
-      padding: 8rem 2rem;
-      position: relative;
-    }
+.hero-eyebrow {
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 3.5rem;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+}
 
-    .section-title {
-      font-family: 'Syne', sans-serif;
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 3rem;
-      letter-spacing: -0.02em;
-    }
+.hero-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  max-width: 500px;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
 
-    .problem-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-top: 4rem;
-    }
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
 
-    .problem-card {
-      background: white;
-      padding: 2.5rem;
-      border-radius: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      border-left: 4px solid var(--primary);
-      transition: transform 0.3s, box-shadow 0.3s;
-    }
+.hero-cta {
+  background: var(--accent-blue);
+  color: white;
+  padding: 1rem 1.8rem;
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 700;
+  transition: all 0.3s;
+}
 
-    .problem-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 40px rgba(0,0,0,0.12);
-    }
+.hero-cta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(59,130,246,0.4);
+  background: #2563EB;
+}
 
-    .problem-icon {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-    }
+.hero-secondary {
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 1rem 1.8rem;
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 700;
+  transition: all 0.3s;
+}
 
-    .problem-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: var(--dark);
-    }
+.hero-secondary:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.4);
+}
 
-    .problem-text {
-      color: var(--gray);
-      line-height: 1.7;
-    }
+.hero-trust {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
 
-    /* Solution Section */
-    .solution-section {
-      background: var(--dark);
-      color: white;
-    }
+.trust-item {
+  background: rgba(255,255,255,0.06);
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: all 0.3s;
+}
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-      margin-top: 4rem;
-    }
+.trust-item:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
 
-    .feature-card {
-      background: rgba(255,255,255,0.05);
-      padding: 2rem;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
-      transition: all 0.3s;
-    }
+.hero-panel {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 18px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.4s;
+}
 
-    .feature-card:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: var(--primary);
-      transform: translateY(-5px);
-    }
+.hero-panel:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
 
-    .feature-icon {
-      width: 50px;
-      height: 50px;
-      background: var(--primary);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
+.panel-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
 
-    .feature-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 0.75rem;
-    }
+.live-badge {
+  background: var(--accent-green);
+  color: white;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  animation: pulse 2s ease-in-out infinite;
+}
 
-    .feature-text {
-      color: rgba(255,255,255,0.8);
-      line-height: 1.7;
-    }
+.panel-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 50px;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.95rem;
+  align-items: center;
+}
 
-    /* Pricing Section */
-    .pricing-card {
-      background: white;
-      max-width: 500px;
-      margin: 4rem auto;
-      padding: 3rem;
-      border-radius: 24px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-      text-align: center;
-      border: 3px solid var(--primary);
-      position: relative;
-      overflow: hidden;
-    }
+.panel-bar {
+  height: 12px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
 
-    .pricing-badge {
-      position: absolute;
-      top: 20px;
-      right: -35px;
-      background: var(--secondary);
-      color: var(--dark);
-      padding: 0.5rem 3rem;
-      font-weight: 700;
-      transform: rotate(45deg);
-      font-size: 0.85rem;
-    }
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 1s ease-out;
+}
 
-    .pricing-price {
-      font-family: 'Syne', sans-serif;
-      font-size: 4rem;
-      font-weight: 800;
-      color: var(--primary);
-      line-height: 1;
-      margin: 1rem 0;
-    }
+.bar-green { background: linear-gradient(90deg, #22C55E, #16A34A); }
+.bar-amber { background: linear-gradient(90deg, #F59E0B, #D97706); }
+.bar-red { background: linear-gradient(90deg, #EF4444, #DC2626); }
 
-    .pricing-period {
-      font-size: 1.25rem;
-      color: var(--gray);
-      margin-bottom: 2rem;
-    }
+.panel-list {
+  margin-top: 1.5rem;
+}
 
-    .pricing-features {
-      list-style: none;
-      margin: 2rem 0;
-      text-align: left;
-    }
+.panel-item {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  margin-bottom: 0.6rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  transition: all 0.3s;
+  align-items: center;
+}
 
-    .pricing-features li {
-      padding: 0.75rem 0;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      border-bottom: 1px solid #f0f0f0;
-    }
+.panel-item:hover {
+  background: rgba(255,255,255,0.1);
+  transform: translateX(5px);
+}
 
-    .pricing-features li:last-child {
-      border-bottom: none;
-    }
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
 
-    .check {
-      color: var(--accent-green);
-      font-size: 1.25rem;
-      font-weight: 700;
-    }
+.status-green { background: var(--accent-green); }
+.status-amber { background: var(--accent-amber); }
+.status-red { background: var(--accent-red); }
 
-    .cta-button {
-      width: 100%;
-      background: var(--primary);
-      color: white;
-      padding: 1.25rem;
-      font-size: 1.25rem;
-      font-weight: 700;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.3s;
-      margin-top: 2rem;
-    }
+/* Features Section */
+.features {
+  padding: 8rem 2rem;
+  background: var(--bg-primary);
+}
 
-    .cta-button:hover {
-      background: var(--primary-dark);
-      transform: translateY(-2px);
-      box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
-    }
+.section-content {
+  max-width: 1200px;
+  margin: auto;
+}
 
-    /* CTA Section */
-    .final-cta {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      text-align: center;
-      color: white;
-    }
+.section-header {
+  text-align: center;
+  margin-bottom: 5rem;
+}
 
-    .final-cta h2 {
-      font-family: 'Syne', sans-serif;
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      font-weight: 800;
-      margin-bottom: 1.5rem;
-    }
+.section-eyebrow {
+  color: var(--accent-blue);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+}
 
-    .final-cta p {
-      font-size: 1.25rem;
-      margin-bottom: 2rem;
-      opacity: 0.95;
-    }
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+}
 
-    /* Footer */
-    footer {
-      background: var(--dark);
-      color: rgba(255,255,255,0.6);
-      padding: 3rem 2rem;
-      text-align: center;
-    }
+.section-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
 
-    footer a {
-      color: var(--primary);
-      text-decoration: none;
-    }
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
 
-    footer a:hover {
-      text-decoration: underline;
-    }
+.feature-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.4s;
+}
 
-    @media (max-width: 768px) {
-      .hero {
-        padding: 1rem;
-      }
+.feature-card:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(59,130,246,0.4);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 50px rgba(59,130,246,0.15);
+}
 
-      .nav {
-        flex-direction: column;
-        gap: 1rem;
-      }
+.feature-icon {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, var(--accent-blue), #2563EB);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
 
-      .social-proof {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+.feature-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.4rem;
+  margin-bottom: 0.8rem;
+}
 
-      .section {
-        padding: 4rem 1rem;
-      }
-    }
-  </style>
+.feature-text {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* How It Works Section */
+.how-it-works {
+  padding: 8rem 2rem;
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 3rem;
+  margin-top: 4rem;
+}
+
+.step-card {
+  text-align: center;
+  position: relative;
+}
+
+.step-number {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--accent-blue), #2563EB);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0 auto 1.5rem;
+}
+
+.step-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.step-text {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Pricing Section */
+.pricing {
+  padding: 8rem 2rem;
+  background: var(--bg-primary);
+}
+
+.pricing-card {
+  max-width: 480px;
+  margin: 4rem auto 0;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid var(--accent-blue);
+  border-radius: 24px;
+  padding: 3rem;
+  text-align: center;
+  position: relative;
+  transition: all 0.4s;
+}
+
+.pricing-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 30px 70px rgba(59,130,246,0.3);
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-green);
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.pricing-plan {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--accent-blue);
+}
+
+.pricing-price {
+  font-family: 'Syne', sans-serif;
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.pricing-period {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+.pricing-features {
+  list-style: none;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.pricing-features li {
+  padding: 0.8rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.pricing-features li:last-child {
+  border-bottom: none;
+}
+
+.check-icon {
+  color: var(--accent-green);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.pricing-cta {
+  display: block;
+  background: var(--accent-blue);
+  color: white;
+  padding: 1.2rem;
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-top: 2rem;
+  transition: all 0.3s;
+}
+
+.pricing-cta:hover {
+  background: #2563EB;
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(59,130,246,0.4);
+}
+
+.pricing-note {
+  margin-top: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* CTA Section */
+.final-cta {
+  padding: 8rem 2rem;
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  text-align: center;
+}
+
+.final-cta-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.final-cta-text {
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Footer */
+.footer {
+  background: var(--bg-secondary);
+  padding: 3rem 2rem;
+  text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: auto;
+  color: var(--text-secondary);
+}
+
+.footer-links {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.footer-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.footer-link:hover {
+  color: white;
+}
+
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-title {
+    font-size: 2.4rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+  }
+
+  .final-cta-title {
+    font-size: 2rem;
+  }
+
+  .nav-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+</style>
 </head>
+
 <body>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="hero-content">
-      <nav class="nav">
-        <div class="logo">OrderWarden</div>
-        <a href="https://orderwarden.com/sign-up" class="nav-cta">Sign In</a>
-      </nav>
+<!-- Hero Section -->
+<section class="hero">
+  <div class="hero-content">
 
-      <h1>Stop Losing Money<br>on Etsy Refunds</h1>
-      <p class="hero-subtitle">
-        Track every order. Spot delivery issues before they become refunds.<br>
-        Save your shop from bad reviews and disputes.
-      </p>
+    <nav class="nav">
+      <div class="logo">OrderWarden</div>
+      <div class="nav-actions">
+        <a href="https://orderwarden.com/sign-in" class="nav-link">Sign in</a>
+        <a href="https://orderwarden.com/sign-up" class="nav-cta">Start free trial</a>
+      </div>
+    </nav>
 
-      <a href="https://orderwarden.com/sign-up" class="hero-cta">
-        Start Free Trial
-        <span>→</span>
-      </a>
+    <div class="hero-grid">
 
-      <div class="social-proof">
-        <div class="stat">
-          <div class="stat-number">94%</div>
-          <div class="stat-label">Refunds Prevented</div>
+      <div>
+        <div class="hero-eyebrow animate-fadeInUp">Shipment monitoring for Etsy sellers</div>
+
+        <h1 class="hero-title animate-fadeInUp animate-delay-1">
+          Prevent refunds with early delivery alerts and a clear risk dashboard.
+        </h1>
+
+        <p class="hero-subtitle animate-fadeInUp animate-delay-2">
+          Track every shipment in one place. Get notified when a package looks delayed or risky before it becomes a bad review or refund request.
+        </p>
+
+        <div class="hero-buttons animate-fadeInUp animate-delay-3">
+          <a href="https://orderwarden.com/sign-up" class="hero-cta">Start free trial</a>
+          <a href="#how-it-works" class="hero-secondary">See how it works</a>
         </div>
-        <div class="stat">
-          <div class="stat-number">$3.2K</div>
-          <div class="stat-label">Avg. Saved/Month</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">2 min</div>
-          <div class="stat-label">Setup Time</div>
+
+        <div class="hero-trust animate-fadeInUp animate-delay-4">
+          <div class="trust-item">✓ No credit card required</div>
+          <div class="trust-item">✓ Cancel anytime</div>
+          <div class="trust-item">✓ Email alerts + dashboard</div>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- Problem Section -->
-  <section class="section">
-    <div class="container">
-      <h2 class="section-title">Every Etsy Seller's Nightmare</h2>
+      <div class="animate-fadeInUp animate-delay-2">
+        <div class="hero-panel">
+          <div class="panel-top">
+            <strong>Delivery Risk Overview</strong>
+            <span class="live-badge">LIVE</span>
+          </div>
 
-      <div class="problem-grid">
-        <div class="problem-card">
-          <div class="problem-icon">💸</div>
-          <h3 class="problem-title">Surprise Refund Requests</h3>
-          <p class="problem-text">
-            Your package is stuck somewhere. You find out when the buyer opens a case.
-            Money gone. Review ruined. Too late to fix.
-          </p>
-        </div>
+          <div class="panel-row">
+            <div>Healthy</div>
+            <div class="panel-bar"><div class="bar-fill bar-green" style="width: 70%;"></div></div>
+            <div>72</div>
+          </div>
 
-        <div class="problem-card">
-          <div class="problem-icon">📦</div>
-          <h3 class="problem-title">Tracking Chaos</h3>
-          <p class="problem-text">
-            Checking 50+ tracking numbers manually? Impossible. Miss one delayed shipment
-            and you've got an angry customer demanding a refund.
-          </p>
-        </div>
+          <div class="panel-row">
+            <div>Needs attention</div>
+            <div class="panel-bar"><div class="bar-fill bar-amber" style="width: 20%;"></div></div>
+            <div>18</div>
+          </div>
 
-        <div class="problem-card">
-          <div class="problem-icon">⭐</div>
-          <h3 class="problem-title">Review Damage</h3>
-          <p class="problem-text">
-            One bad review from a shipping issue can tank your shop. You can't control
-            USPS, but you take the hit.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
+          <div class="panel-row">
+            <div>High risk</div>
+            <div class="panel-bar"><div class="bar-fill bar-red" style="width: 10%;"></div></div>
+            <div>10</div>
+          </div>
 
-  <!-- Solution Section -->
-  <section class="section solution-section">
-    <div class="container">
-      <h2 class="section-title" style="color: white;">How OrderWarden Protects Your Shop</h2>
+          <div class="panel-list">
+            <div class="panel-item">
+              <div class="status-dot status-amber"></div>
+              <div>Order #1842 stalled in transit</div>
+              <div style="font-size: 0.85rem; color: var(--accent-amber); font-weight: 600;">Follow up</div>
+            </div>
 
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h3 class="feature-title">Automatic Tracking</h3>
-          <p class="feature-text">
-            We monitor every package 24/7. No more manual checking. Get instant alerts
-            when something goes wrong.
-          </p>
-        </div>
+            <div class="panel-item">
+              <div class="status-dot status-red"></div>
+              <div>Order #1829 failed delivery</div>
+              <div style="font-size: 0.85rem; color: var(--accent-red); font-weight: 600;">Urgent</div>
+            </div>
 
-        <div class="feature-card">
-          <div class="feature-icon">⚠️</div>
-          <h3 class="feature-title">Early Warning System</h3>
-          <p class="feature-text">
-            Spot delivery problems before your customer does. Yellow and red flags
-            show exactly which orders need attention.
-          </p>
-        </div>
+            <div class="panel-item">
+              <div class="status-dot status-green"></div>
+              <div>Order #1851 delivered</div>
+              <div style="font-size: 0.85rem; color: var(--accent-green); font-weight: 600;">Done</div>
+            </div>
+          </div>
 
-        <div class="feature-card">
-          <div class="feature-icon">💬</div>
-          <h3 class="feature-title">Ready-to-Send Messages</h3>
-          <p class="feature-text">
-            We write the perfect customer message for every situation. Copy, paste,
-            send. Keep buyers happy and informed.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h3 class="feature-title">Simple Dashboard</h3>
-          <p class="feature-text">
-            See all your orders in one place. Sort by risk level. Focus on what
-            matters. No spreadsheets needed.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🚀</div>
-          <h3 class="feature-title">2-Minute Setup</h3>
-          <p class="feature-text">
-            Add your tracking numbers. That's it. No complicated integration.
-            No tech skills required.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">💰</div>
-          <h3 class="feature-title">Save Money</h3>
-          <p class="feature-text">
-            Prevent refunds before they happen. One saved $100 order pays for
-            5 months of OrderWarden.
-          </p>
         </div>
       </div>
+
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Pricing Section -->
-  <section class="section">
-    <div class="container">
-      <h2 class="section-title">Simple, Honest Pricing</h2>
+<!-- Features Section -->
+<section class="features" id="features">
+  <div class="section-content">
+    <div class="section-header">
+      <div class="section-eyebrow">Features</div>
+      <h2 class="section-title">Everything you need to protect your shop</h2>
+      <p class="section-subtitle">Powerful tracking and monitoring tools built specifically for Etsy sellers</p>
+    </div>
 
-      <div class="pricing-card">
-        <div class="pricing-badge">BETA SPECIAL</div>
-        <h3 style="font-size: 1.5rem; margin-top: 1rem;">Pro Plan</h3>
-        <div class="pricing-price">$19</div>
-        <div class="pricing-period">per month</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3 class="feature-title">Automatic Tracking</h3>
+        <p class="feature-text">
+          We monitor every package 24/7 across USPS, UPS, FedEx, and DHL. No more manual checking - just add tracking numbers and we handle the rest.
+        </p>
+      </div>
 
-        <ul class="pricing-features">
-          <li><span class="check">✓</span> Unlimited orders</li>
-          <li><span class="check">✓</span> 24/7 tracking monitoring</li>
-          <li><span class="check">✓</span> Risk alerts</li>
-          <li><span class="check">✓</span> Pre-written messages</li>
-          <li><span class="check">✓</span> Email notifications</li>
-          <li><span class="check">✓</span> Priority support</li>
-        </ul>
+      <div class="feature-card">
+        <div class="feature-icon">⚠️</div>
+        <h3 class="feature-title">Smart Risk Alerts</h3>
+        <p class="feature-text">
+          Get instant notifications when packages are delayed, stuck, or showing delivery issues. Fix problems before customers complain.
+        </p>
+      </div>
 
-        <button class="cta-button" onclick="window.location.href='https://orderwarden.com/sign-up'">
-          Start 7-Day Free Trial
-        </button>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3 class="feature-title">Pre-Written Messages</h3>
+        <p class="feature-text">
+          Copy-paste ready buyer messages for every situation. Keep customers informed and happy with professional communication templates.
+        </p>
+      </div>
 
-        <p style="margin-top: 1.5rem; color: var(--gray); font-size: 0.9rem;">
-          No credit card required • Cancel anytime • Money-back guarantee
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3 class="feature-title">Visual Dashboard</h3>
+        <p class="feature-text">
+          See all orders at a glance with color-coded risk levels. Focus on what needs attention and ignore what's running smoothly.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📧</div>
+        <h3 class="feature-title">Email Notifications</h3>
+        <p class="feature-text">
+          Receive email alerts for high-risk shipments. Never miss a potential refund situation even when you're away from your dashboard.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3 class="feature-title">2-Minute Setup</h3>
+        <p class="feature-text">
+          No complex integration or technical skills needed. Add your tracking numbers and start protecting your shop immediately.
         </p>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Final CTA -->
-  <section class="section final-cta">
-    <div class="container">
-      <h2>Ready to Protect Your Shop?</h2>
-      <p>Join Etsy sellers who've stopped losing money on refunds.</p>
-      <a href="https://orderwarden.com/sign-up" class="hero-cta">
-        Get Started Free
-        <span>→</span>
-      </a>
-      <p style="margin-top: 1.5rem; font-size: 0.9rem;">
-        7-day free trial • No credit card required
-      </p>
+<!-- How It Works Section -->
+<section class="how-it-works" id="how-it-works">
+  <div class="section-content">
+    <div class="section-header">
+      <div class="section-eyebrow">How it works</div>
+      <h2 class="section-title">Start preventing refunds in 3 simple steps</h2>
     </div>
-  </section>
 
-  <!-- Footer -->
-  <footer>
-    <div class="container">
-      <p>&copy; 2026 OrderWarden. Built for Etsy sellers who care about their shops.</p>
-      <p style="margin-top: 1rem;">
-        <a href="mailto:support@OrderWarden.co">support@OrderWarden.co</a> •
-        <a href="#">Terms</a> •
-        <a href="#">Privacy</a>
-      </p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3 class="step-title">Add Your Orders</h3>
+        <p class="step-text">
+          Enter your Etsy order IDs and tracking numbers. Takes about 30 seconds per order. Works with all major carriers.
+        </p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3 class="step-title">We Monitor 24/7</h3>
+        <p class="step-text">
+          Our system checks every package multiple times per day, analyzing delivery progress and identifying potential issues early.
+        </p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3 class="step-title">Get Alerts & Act</h3>
+        <p class="step-text">
+          Receive instant alerts for at-risk packages. Use our pre-written messages to contact buyers proactively and prevent refunds.
+        </p>
+      </div>
     </div>
-  </footer>
+  </div>
+</section>
+
+<!-- Pricing Section -->
+<section class="pricing" id="pricing">
+  <div class="section-content">
+    <div class="section-header">
+      <div class="section-eyebrow">Pricing</div>
+      <h2 class="section-title">Simple, honest pricing</h2>
+      <p class="section-subtitle">One plan, no hidden fees. Save money by preventing just one refund.</p>
+    </div>
+
+    <div class="pricing-card">
+      <div class="pricing-badge">BETA SPECIAL</div>
+      
+      <div class="pricing-plan">Pro Plan</div>
+      <div class="pricing-price">$19</div>
+      <div class="pricing-period">per month</div>
+
+      <ul class="pricing-features">
+        <li><span class="check-icon">✓</span> Unlimited orders</li>
+        <li><span class="check-icon">✓</span> 24/7 tracking monitoring</li>
+        <li><span class="check-icon">✓</span> Risk alerts & notifications</li>
+        <li><span class="check-icon">✓</span> Pre-written buyer messages</li>
+        <li><span class="check-icon">✓</span> Email notifications</li>
+        <li><span class="check-icon">✓</span> Priority support</li>
+      </ul>
+
+      <a href="https://orderwarden.com/sign-up" class="pricing-cta">Start 7-Day Free Trial</a>
+
+      <div class="pricing-note">
+        No credit card required • Cancel anytime • Money-back guarantee
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA Section -->
+<section class="final-cta">
+  <div class="section-content">
+    <h2 class="final-cta-title">Ready to protect your Etsy shop?</h2>
+    <p class="final-cta-text">
+      Join Etsy sellers who've stopped losing money on refunds and disputes.
+    </p>
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+      <a href="https://orderwarden.com/sign-up" class="hero-cta">Get Started Free</a>
+      <a href="#features" class="hero-secondary">Learn More</a>
+    </div>
+    <p style="margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+      7-day free trial • No credit card required • Setup in 2 minutes
+    </p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-content">
+    <div class="logo">OrderWarden</div>
+    <p style="margin-top: 1rem;">Built for Etsy sellers who care about their shops.</p>
+    <div class="footer-links">
+      <a href="mailto:support@orderwarden.com" class="footer-link">Contact</a>
+      <a href="#" class="footer-link">Terms</a>
+      <a href="#" class="footer-link">Privacy</a>
+    </div>
+    <p style="margin-top: 2rem; font-size: 0.85rem;">© 2026 OrderWarden. All rights reserved.</p>
+  </div>
+</footer>
 
 </body>
 </html>
