@@ -6,7 +6,7 @@ const etsyService = require('../services/etsyService');
 
 // Helper: Get authenticated user ID from request
 function getAuthUserId(req) {
-  return req.auth?.userId || req.headers['x-clerk-user-id'];
+  return req.auth?.userId || req.headers['x-clerk-user-id'] || req.query['x-clerk-user-id'];
 }
 
 // Dashboard URL for redirects
