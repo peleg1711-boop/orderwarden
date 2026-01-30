@@ -60,20 +60,20 @@ async function checkTrackingStatus(trackingNumber, carrier = null) {
 
 /**
  * Create new tracking in AfterShip (2024-07 API)
+ * Note: 2024-07 API uses flat body format, not nested
  */
 async function createTracking(trackingNumber, carrierSlug = null) {
+  // 2024-07 API expects flat body, NOT nested {"tracking":{...}}
   const body = {
-    tracking: {
-      tracking_number: trackingNumber
-    }
+    tracking_number: trackingNumber
   };
-  
+
   if (carrierSlug) {
-    body.tracking.slug = carrierSlug;
+    body.slug = carrierSlug;
   }
-  
+
   console.log(`[TrackingService] Creating tracking:`, JSON.stringify(body));
-  
+
   const response = await fetch(`${AFTERSHIP_API_URL}/trackings`, {
     method: 'POST',
     headers: {
@@ -82,19 +82,20 @@ async function createTracking(trackingNumber, carrierSlug = null) {
     },
     body: JSON.stringify(body)
   });
-  
+
   const data = await response.json();
   console.log(`[TrackingService] Create response:`, JSON.stringify(data));
-  
+
   if (!response.ok) {
-    // Check if tracking already exists
+    // Check if tracking already exists (code 4003)
     if (data.meta?.code === 4003) {
       throw new Error('4003: Tracking already exists');
     }
     throw new Error(data.meta?.message || `API error: ${response.status}`);
   }
-  
-  return data.data?.tracking;
+
+  // 2024-07 API returns tracking object directly in data, not data.tracking
+  return data.data;
 }
 
 
