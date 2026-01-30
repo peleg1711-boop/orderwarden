@@ -2,7 +2,7 @@
 // AfterShip integration - FIXED VERSION
 
 const AFTERSHIP_API_KEY = process.env.AFTERSHIP_API_KEY;
-const AFTERSHIP_API_URL = 'https://api.aftership.com/v4';
+const AFTERSHIP_API_URL = 'https://api.aftership.com/tracking/2024-07';
 
 /**
  * Check tracking status for a package using AfterShip
