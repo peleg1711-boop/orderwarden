@@ -168,12 +168,23 @@ export default function DashboardPage() {
 
   const getRiskColor = (riskLevel: string | null | undefined): string => {
     if (!riskLevel) return 'bg-gray-700 text-gray-300';
-    
+
     switch (riskLevel.toLowerCase()) {
       case 'green': return 'bg-emerald-500 text-white';
       case 'yellow': return 'bg-amber-400 text-gray-900';
       case 'red': return 'bg-red-500 text-white';
       default: return 'bg-gray-700 text-gray-300';
+    }
+  };
+
+  const getRiskLabel = (riskLevel: string | null | undefined): string => {
+    if (!riskLevel) return 'Unknown';
+
+    switch (riskLevel.toLowerCase()) {
+      case 'green': return 'Healthy';
+      case 'yellow': return 'Needs Attention';
+      case 'red': return 'High Risk';
+      default: return 'Unknown';
     }
   };
 
@@ -342,7 +353,7 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           {order.riskLevel ? (
                             <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${getRiskColor(order.riskLevel)}`}>
-                              {order.riskLevel}
+                              {getRiskLabel(order.riskLevel)}
                             </span>
                           ) : <span className="text-slate-500 font-medium">—</span>}
                         </td>
