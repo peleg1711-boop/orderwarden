@@ -47,6 +47,7 @@ app.get("/debug/env", (req, res) => {
 app.use("/api/orders", require("./routes/orders"));
 app.use("/api", require("./routes/me"));
 app.use("/api/etsy", require("./routes/etsy"));
+app.use("/api/cron", require("./routes/cron"));
 
 // 404 handler
 app.use((req, res) => {
