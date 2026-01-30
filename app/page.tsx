@@ -119,6 +119,29 @@ export default function DashboardPage() {
     }
   };
 
+  const deleteOrder = async (orderId: string) => {
+    if (!userId) return;
+    if (!confirm('Are you sure you want to delete this order?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-clerk-user-id': userId
+        }
+      });
+
+      if (response.ok) {
+        setOrders(orders.filter(order => order.id !== orderId));
+      } else {
+        alert('Failed to delete order');
+      }
+    } catch (err) {
+      alert('Failed to delete order');
+      console.error(err);
+    }
+  };
+
   const checkTracking = async (orderId: string) => {
     if (!userId) return;
     try {
@@ -326,12 +349,18 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 font-medium">
                           {order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold space-x-4">
                           <button
                             onClick={() => checkTracking(order.id)}
                             className="text-blue-400 hover:text-blue-300 hover:underline font-bold"
                           >
-                            Check Tracking →
+                            Check Tracking
+                          </button>
+                          <button
+                            onClick={() => deleteOrder(order.id)}
+                            className="text-red-400 hover:text-red-300 hover:underline font-bold"
+                          >
+                            Delete
                           </button>
                         </td>
                       </tr>
