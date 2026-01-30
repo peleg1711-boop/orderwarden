@@ -46,6 +46,7 @@ app.get("/debug/env", (req, res) => {
 // ⚠️ CRITICAL: Routes must be mounted - DO NOT COMMENT OUT
 app.use("/api/orders", require("./routes/orders"));
 app.use("/api", require("./routes/me"));
+app.use("/api/etsy", require("./routes/etsy"));
 
 // 404 handler
 app.use((req, res) => {
