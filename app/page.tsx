@@ -92,10 +92,31 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddOrder, setShowAddOrder] = useState(false);
+  
+  // Etsy connection state
+  const [etsyStatus, setEtsyStatus] = useState<{
+    connected: boolean;
+    shopName?: string;
+    lastSyncAt?: string;
+    syncing?: boolean;
+  }>({ connected: false });
 
   useEffect(() => {
     if (userId) {
       fetchOrders();
+      fetchEtsyStatus();
+      
+      // Check for Etsy OAuth callback params
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('etsy_connected') === 'true') {
+        const shopName = params.get('shop');
+        alert(`Successfully connected to Etsy shop: ${shopName}`);
+        window.history.replaceState({}, '', window.location.pathname);
+        fetchEtsyStatus();
+      } else if (params.get('etsy_error')) {
+        alert(`Etsy connection failed: ${params.get('etsy_error')}`);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
   }, [userId]);
 
@@ -116,6 +137,65 @@ export default function DashboardPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEtsyStatus = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`${API_URL}/api/etsy/status`, {
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      setEtsyStatus({ ...data, syncing: false });
+    } catch (err) {
+      console.error('Failed to fetch Etsy status:', err);
+    }
+  };
+
+  const connectEtsy = () => {
+    if (!userId) return;
+    // Redirect to backend OAuth endpoint
+    window.location.href = `${API_URL}/api/etsy/auth?x-clerk-user-id=${userId}`;
+  };
+
+  const syncEtsy = async () => {
+    if (!userId) return;
+    setEtsyStatus(prev => ({ ...prev, syncing: true }));
+    try {
+      const response = await fetch(`${API_URL}/api/etsy/sync`, {
+        method: 'POST',
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert(`Sync complete! Imported ${data.imported} orders, skipped ${data.skipped}.`);
+        fetchOrders();
+        fetchEtsyStatus();
+      } else {
+        alert(`Sync failed: ${data.error}`);
+      }
+    } catch (err) {
+      alert('Failed to sync orders');
+      console.error(err);
+    } finally {
+      setEtsyStatus(prev => ({ ...prev, syncing: false }));
+    }
+  };
+
+  const disconnectEtsy = async () => {
+    if (!userId) return;
+    if (!confirm('Are you sure you want to disconnect your Etsy shop?')) return;
+    try {
+      await fetch(`${API_URL}/api/etsy/disconnect`, {
+        method: 'POST',
+        headers: { 'x-clerk-user-id': userId }
+      });
+      setEtsyStatus({ connected: false });
+      alert('Etsy disconnected');
+    } catch (err) {
+      alert('Failed to disconnect');
+      console.error(err);
     }
   };
 
@@ -251,6 +331,36 @@ export default function DashboardPage() {
                 <p className="text-slate-400 text-sm font-medium mt-1">Protecting your Etsy shop</p>
               </div>
               <div className="flex items-center gap-4">
+                {/* Etsy Connection Status */}
+                {etsyStatus.connected ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-emerald-400 font-medium">
+                      🔗 {etsyStatus.shopName}
+                    </span>
+                    <button
+                      onClick={syncEtsy}
+                      disabled={etsyStatus.syncing}
+                      className="bg-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm hover:bg-orange-400 transition-all disabled:opacity-50"
+                    >
+                      {etsyStatus.syncing ? '⏳ Syncing...' : '🔄 Sync'}
+                    </button>
+                    <button
+                      onClick={disconnectEtsy}
+                      className="text-slate-400 hover:text-red-400 text-sm"
+                      title="Disconnect Etsy"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={connectEtsy}
+                    className="bg-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm hover:bg-orange-400 transition-all"
+                  >
+                    🔗 Connect Etsy
+                  </button>
+                )}
+                
                 <button
                   onClick={() => setShowAddOrder(true)}
                   className="bg-blue-600 text-white px-6 py-3 rounded-full font-bold text-base hover:bg-blue-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
