@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserButton, useUser } from '@clerk/nextjs';
-import { redirect } from 'next/navigation';
+import { UserButton, useUser, useAuth } from '@clerk/nextjs';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -81,6 +80,7 @@ function DeliveryRiskOverview({ orders }: { orders: Order[] }) {
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn } = useUser();
+  const { userId } = useAuth();
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -94,13 +94,20 @@ export default function DashboardPage() {
   const [showAddOrder, setShowAddOrder] = useState(false);
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    if (userId) {
+      fetchOrders();
+    }
+  }, [userId]);
 
   const fetchOrders = async () => {
+    if (!userId) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/orders`);
+      const response = await fetch(`${API_URL}/api/orders`, {
+        headers: {
+          'x-clerk-user-id': userId
+        }
+      });
       const data = await response.json();
       setOrders(data.orders || []);
       setError(null);
@@ -113,9 +120,13 @@ export default function DashboardPage() {
   };
 
   const checkTracking = async (orderId: string) => {
+    if (!userId) return;
     try {
       const response = await fetch(`${API_URL}/api/orders/${orderId}/check`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'x-clerk-user-id': userId
+        }
       });
       const data = await response.json();
       
@@ -333,8 +344,9 @@ export default function DashboardPage() {
         </main>
 
         {/* Add Order Modal */}
-        {showAddOrder && (
+        {showAddOrder && userId && (
           <AddOrderModal
+            userId={userId}
             onClose={() => setShowAddOrder(false)}
             onSuccess={() => {
               setShowAddOrder(false);
@@ -359,7 +371,7 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
   );
 }
 
-function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function AddOrderModal({ userId, onClose, onSuccess }: { userId: string; onClose: () => void; onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     orderId: '',
     trackingNumber: '',
@@ -376,7 +388,10 @@ function AddOrderModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     try {
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-clerk-user-id': userId
+        },
         body: JSON.stringify(formData)
       });
 
