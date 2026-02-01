@@ -9,6 +9,9 @@ const { checkTrackingStatus } = require("../services/trackingService");
 // Import message templates helper
 const { getMessageTemplate } = require("../utils/messageTemplates");
 
+// Constants
+const FREE_ORDER_LIMIT = 10;
+
 // Helper: Get authenticated user ID from Clerk
 function getAuthUserId(req) {
   return req.auth?.userId || req.headers["x-clerk-user-id"] || null;
@@ -117,6 +120,18 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// Helper: Check if we need to reset monthly order count
+function shouldResetOrderCount(orderCountResetAt) {
+  if (!orderCountResetAt) return true;
+
+  const now = new Date();
+  const resetDate = new Date(orderCountResetAt);
+
+  // Reset if we're in a different month
+  return now.getMonth() !== resetDate.getMonth() ||
+         now.getFullYear() !== resetDate.getFullYear();
+}
+
 // POST /api/orders - Create new order (authenticated, auto-assigns to user's store)
 router.post("/", async (req, res) => {
   try {
@@ -136,6 +151,33 @@ router.post("/", async (req, res) => {
 
     // Ensure user and store exist (auto-creates if missing)
     const storeIds = await ensureUserAndGetStoreIds(userId);
+
+    // Get user to check subscription status and order count
+    let user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    // Reset monthly count if needed
+    if (user && shouldResetOrderCount(user.orderCountResetAt)) {
+      user = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          monthlyOrderCount: 0,
+          orderCountResetAt: new Date(),
+        },
+      });
+    }
+
+    // Check order limit for free users
+    if (user && user.planType !== "pro" && user.monthlyOrderCount >= FREE_ORDER_LIMIT) {
+      return res.status(403).json({
+        error: "Monthly order limit reached",
+        message: `Free plan allows ${FREE_ORDER_LIMIT} orders per month. Upgrade to Pro for unlimited orders.`,
+        upgradeRequired: true,
+        currentCount: user.monthlyOrderCount,
+        limit: FREE_ORDER_LIMIT,
+      });
+    }
 
     // Determine which store to use
     let assignedStoreId = storeId;
@@ -158,6 +200,15 @@ router.post("/", async (req, res) => {
         storeId: assignedStoreId,
         riskLevel: "green" // Default to green until first check
       }
+    });
+
+    // Increment monthly order count
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        monthlyOrderCount: { increment: 1 },
+        orderCountResetAt: user?.orderCountResetAt || new Date(),
+      },
     });
 
     console.log(`[Orders] Created order ${order.id} for Etsy order ${orderId} (user: ${userId})`);

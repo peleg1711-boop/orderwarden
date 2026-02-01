@@ -12,6 +12,16 @@ model User {
   email          String           @unique
   stores         Store[]
   etsyConnection EtsyConnection?
+
+  // LemonSqueezy subscription fields
+  lemonSqueezyCustomerId  String?
+  subscriptionId          String?
+  subscriptionStatus      String?   // "active", "cancelled", "expired", "past_due"
+  planType                String    @default("free")  // "free" or "pro"
+  subscriptionEndsAt      DateTime?
+  monthlyOrderCount       Int       @default(0)
+  orderCountResetAt       DateTime?
+
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 }
