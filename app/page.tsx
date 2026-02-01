@@ -17,6 +17,16 @@ interface Order {
   updatedAt: string;
 }
 
+interface BillingStatus {
+  planType: 'free' | 'pro';
+  subscriptionStatus: string | null;
+  subscriptionId: string | null;
+  subscriptionEndsAt: string | null;
+  monthlyOrderCount: number;
+  limit: number | null;
+  canCreateOrder: boolean;
+}
+
 // Toast notification component
 function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
   useEffect(() => {
@@ -132,6 +142,10 @@ export default function DashboardPage() {
     syncing?: boolean;
   }>({ connected: false });
 
+  // Billing/subscription state
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
+
 
   // Filter and sort orders
   const filteredOrders = useMemo(() => {
@@ -240,7 +254,8 @@ export default function DashboardPage() {
     if (userId) {
       fetchOrders();
       fetchEtsyStatus();
-      
+      fetchBillingStatus();
+
       const params = new URLSearchParams(window.location.search);
       if (params.get('etsy_connected') === 'true') {
         const shopName = params.get('shop');
@@ -282,6 +297,53 @@ export default function DashboardPage() {
       setEtsyStatus({ ...data, syncing: false });
     } catch (err) {
       console.error('Failed to fetch Etsy status:', err);
+    }
+  };
+
+  const fetchBillingStatus = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`${API_URL}/api/billing/status`, {
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      setBillingStatus(data);
+    } catch (err) {
+      console.error('Failed to fetch billing status:', err);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!userId) return;
+    setUpgrading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/billing/create-checkout`, {
+        method: 'POST',
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      setToast({ message: 'Failed to start upgrade', type: 'error' });
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`${API_URL}/api/billing/portal`, {
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      if (data.portalUrl) {
+        window.open(data.portalUrl, '_blank');
+      }
+    } catch (err) {
+      setToast({ message: 'Failed to open subscription portal', type: 'error' });
     }
   };
 
@@ -471,6 +533,33 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-4">
+                {/* Plan Badge */}
+                {billingStatus && (
+                  <div className="flex items-center gap-2">
+                    {billingStatus.planType === 'pro' ? (
+                      <>
+                        <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-black rounded-full uppercase tracking-wider shadow-lg">
+                          ⚡ Pro
+                        </span>
+                        <button onClick={handleManageSubscription}
+                          className="text-slate-400 hover:text-white text-xs underline">
+                          Manage
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="px-3 py-1 bg-slate-700 text-slate-300 text-xs font-bold rounded-full">
+                          Free ({billingStatus.monthlyOrderCount}/{billingStatus.limit})
+                        </span>
+                        <button onClick={handleUpgrade} disabled={upgrading}
+                          className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full hover:from-purple-400 hover:to-pink-400 transition-all shadow-lg disabled:opacity-50">
+                          {upgrading ? '...' : '⚡ Upgrade'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {etsyStatus.connected ? (
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-emerald-400 font-medium">🔗 {etsyStatus.shopName}</span>
@@ -503,6 +592,42 @@ export default function DashboardPage() {
             <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 px-6 py-4 rounded-lg mb-6">
               <div className="flex items-center"><span className="text-2xl mr-3">⚠️</span><span className="font-semibold">{error}</span></div>
             </div>
+          )}
+
+          {/* Order Limit Warning Banner */}
+          {billingStatus && billingStatus.planType === 'free' && billingStatus.limit && (
+            billingStatus.monthlyOrderCount >= billingStatus.limit ? (
+              <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 border-l-4 border-purple-500 px-6 py-4 rounded-lg mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">🚫</span>
+                    <div>
+                      <span className="font-bold text-white">Monthly order limit reached!</span>
+                      <p className="text-sm text-purple-200">You&apos;ve used all {billingStatus.limit} orders this month. Upgrade to Pro for unlimited orders.</p>
+                    </div>
+                  </div>
+                  <button onClick={handleUpgrade} disabled={upgrading}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full hover:from-purple-400 hover:to-pink-400 transition-all shadow-lg disabled:opacity-50">
+                    {upgrading ? 'Loading...' : '⚡ Upgrade to Pro - $19.99/mo'}
+                  </button>
+                </div>
+              </div>
+            ) : billingStatus.monthlyOrderCount >= billingStatus.limit - 2 ? (
+              <div className="bg-amber-900/30 border-l-4 border-amber-500 px-6 py-4 rounded-lg mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-3">⚡</span>
+                    <span className="font-medium text-amber-200">
+                      You&apos;ve used {billingStatus.monthlyOrderCount} of {billingStatus.limit} free orders this month.
+                    </span>
+                  </div>
+                  <button onClick={handleUpgrade} disabled={upgrading}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full text-sm hover:from-purple-400 hover:to-pink-400 transition-all">
+                    Upgrade to Pro
+                  </button>
+                </div>
+              </div>
+            ) : null
           )}
 
 
@@ -714,23 +839,49 @@ function AddOrderModal({ userId, onClose, onSuccess }: { userId: string; onClose
   const [formData, setFormData] = useState({ orderId: '', trackingNumber: '', carrier: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setUpgradeRequired(false);
     try {
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-clerk-user-id': userId },
         body: JSON.stringify(formData)
       });
-      if (!response.ok) throw new Error('Failed to create order');
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.upgradeRequired) {
+          setUpgradeRequired(true);
+          setError(data.message || 'Monthly order limit reached');
+        } else {
+          throw new Error(data.error || 'Failed to create order');
+        }
+        return;
+      }
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpgradeFromModal = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/billing/create-checkout`, {
+        method: 'POST',
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      setError('Failed to start upgrade');
     }
   };
 
@@ -748,8 +899,14 @@ function AddOrderModal({ userId, onClose, onSuccess }: { userId: string; onClose
         </div>
 
         {error && (
-          <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6">
-            <p className="font-semibold">{error}</p>
+          <div className={`${upgradeRequired ? 'bg-purple-900/50 border-purple-500' : 'bg-red-900/50 border-red-500'} border-l-4 px-4 py-3 rounded-lg mb-6`}>
+            <p className={`font-semibold ${upgradeRequired ? 'text-purple-200' : 'text-red-300'}`}>{error}</p>
+            {upgradeRequired && (
+              <button onClick={handleUpgradeFromModal}
+                className="mt-3 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-full text-sm hover:from-purple-400 hover:to-pink-400 transition-all">
+                ⚡ Upgrade to Pro - $19.99/mo
+              </button>
+            )}
           </div>
         )}
 
