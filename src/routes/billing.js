@@ -156,7 +156,7 @@ router.get("/portal", async (req, res) => {
  * POST /api/billing/webhook
  * Handles LemonSqueezy webhook events
  */
-router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+router.post("/webhook", async (req, res) => {
   try {
     // Verify webhook signature
     const signature = req.headers["x-signature"];
@@ -167,7 +167,7 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
     }
 
     // Get raw body for signature verification
-    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
 
     // Verify HMAC signature
     const hmac = crypto.createHmac("sha256", LEMONSQUEEZY_WEBHOOK_SECRET);
@@ -178,10 +178,10 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    const payload = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString("utf8")) : req.body;
     const eventName = payload.meta?.event_name;
     const customData = payload.meta?.custom_data || {};
-    const userId = customData.user_id;
+    const userId = customData.user_id || customData.clerkUserId || customData.clerk_user_id;
 
     console.log(`[Billing] Webhook received: ${eventName} for user ${userId}`);
 
@@ -192,6 +192,9 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
 
     const subscriptionData = payload.data?.attributes || {};
     const subscriptionId = payload.data?.id;
+
+    // Ensure user exists
+    await getOrCreateUser(userId);
 
     switch (eventName) {
       case "subscription_created":
