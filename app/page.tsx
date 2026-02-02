@@ -317,7 +317,7 @@ export default function DashboardPage() {
     if (!userId) return;
     setUpgrading(true);
     try {
-      const response = await fetch(`${API_URL}/api/billing/create-checkout`, {
+      const response = await fetch(`/api/billing/create-checkout`, {
         method: 'POST',
         headers: { 'x-clerk-user-id': userId }
       });
@@ -872,7 +872,7 @@ function AddOrderModal({ userId, onClose, onSuccess }: { userId: string; onClose
 
   const handleUpgradeFromModal = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/billing/create-checkout`, {
+      const response = await fetch(`/api/billing/create-checkout`, {
         method: 'POST',
         headers: { 'x-clerk-user-id': userId }
       });
