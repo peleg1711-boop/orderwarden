@@ -27,7 +27,7 @@ export async function POST(request: Request) {
             clerkUserId: userId
           }
         },
-        checkout_options: {
+        product_options: {
           redirect_url: `${origin}/?checkout=success`
         }
       },
