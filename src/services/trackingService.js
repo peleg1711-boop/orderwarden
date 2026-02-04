@@ -127,7 +127,7 @@ function normalize17TrackData(apiResponse, trackingNumber) {
   const accepted = apiResponse.data?.accepted || [];
   const tracking = accepted.find(t => t.number === trackingNumber);
 
-  if (!tracking || !tracking.track) {
+  if (!tracking) {
     return {
       status: "unknown",
       riskLevel: "yellow",
@@ -138,49 +138,69 @@ function normalize17TrackData(apiResponse, trackingNumber) {
     };
   }
 
-  const trackInfo = tracking.track;
+  // 17TRACK v2.2 uses track_info structure
+  const trackInfo = tracking.track_info;
 
-  // 17TRACK status codes to our status mapping
-  // e = package status: 0=Not Found, 10=In Transit, 20=Expired, 30=Ready to pick up,
-  //                     35=Undelivered, 40=Delivered, 50=Alert
+  if (!trackInfo) {
+    return {
+      status: "unknown",
+      riskLevel: "yellow",
+      carrier: getCarrierName(tracking.carrier) || "unknown",
+      lastUpdate: new Date(),
+      location: null,
+      message: "No tracking info available"
+    };
+  }
+
+  // Map 17TRACK status to our status
+  // 17TRACK statuses: NotFound, InfoReceived, InTransit, OutForDelivery,
+  //                   AvailableForPickup, Delivered, Exception, Expired
   const statusMap = {
-    0: 'unknown',
-    10: 'in_transit',
-    20: 'pre_transit',
-    30: 'out_for_delivery',
-    35: 'delivery_failed',
-    40: 'delivered',
-    50: 'exception'
+    'NotFound': 'unknown',
+    'InfoReceived': 'pre_transit',
+    'InTransit': 'in_transit',
+    'OutForDelivery': 'out_for_delivery',
+    'AvailableForPickup': 'out_for_delivery',
+    'Delivered': 'delivered',
+    'Exception': 'exception',
+    'Expired': 'lost'
   };
 
-  const statusCode = trackInfo.e || 0;
-  const status = statusMap[statusCode] || 'unknown';
+  const latestStatus = trackInfo.latest_status?.status || 'NotFound';
+  const status = statusMap[latestStatus] || 'unknown';
 
-  // Get latest checkpoint from z1 (latest tracking events) or z0 (origin tracking)
-  const checkpoints = trackInfo.z1 || trackInfo.z0 || [];
-  const latestCheckpoint = checkpoints.length > 0 ? checkpoints[0] : null; // 17TRACK returns newest first
+  // Get latest event info
+  const latestEvent = trackInfo.latest_event;
 
   // Parse last update time
   let lastUpdate = new Date();
-  if (latestCheckpoint?.a) {
-    // 17TRACK uses Unix timestamp in seconds
-    lastUpdate = new Date(latestCheckpoint.a * 1000);
+  if (latestEvent?.time_utc) {
+    lastUpdate = new Date(latestEvent.time_utc);
+  } else if (latestEvent?.time_iso) {
+    lastUpdate = new Date(latestEvent.time_iso);
   }
 
-  // Get location from latest checkpoint
+  // Get location from latest event
   let location = null;
-  if (latestCheckpoint?.c) {
-    location = latestCheckpoint.c; // Location string
+  if (latestEvent?.location) {
+    location = latestEvent.location;
+  } else if (latestEvent?.address) {
+    const addr = latestEvent.address;
+    const parts = [];
+    if (addr.city) parts.push(addr.city);
+    if (addr.state) parts.push(addr.state);
+    if (addr.country) parts.push(addr.country);
+    location = parts.join(', ') || null;
   }
 
-  // Get message from latest checkpoint
-  const message = latestCheckpoint?.z || null;
+  // Get message from latest event
+  const message = latestEvent?.description || null;
 
   // Calculate risk level
   const riskLevel = calculateRiskLevel(status, lastUpdate);
 
   // Get carrier name
-  const carrierName = getCarrierName(trackInfo.b) || 'unknown';
+  const carrierName = getCarrierName(tracking.carrier) || 'unknown';
 
   return {
     status,
