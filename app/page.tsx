@@ -145,6 +145,7 @@ export default function DashboardPage() {
   // Billing/subscription state
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [upgrading, setUpgrading] = useState(false);
+  const [showProWelcome, setShowProWelcome] = useState(false);
 
 
   // Filter and sort orders
@@ -264,6 +265,12 @@ export default function DashboardPage() {
         fetchEtsyStatus();
       } else if (params.get('etsy_error')) {
         setToast({ message: `Etsy connection failed: ${params.get('etsy_error')}`, type: 'error' });
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+
+      // Check for Pro upgrade success from LemonSqueezy redirect
+      if (params.get('upgraded') === 'true' || params.get('checkout_success') === 'true') {
+        setShowProWelcome(true);
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
@@ -439,10 +446,15 @@ export default function DashboardPage() {
         headers: { 'x-clerk-user-id': userId }
       });
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to check tracking');
+      }
+
       setOrders(orders.map(order => order.id === orderId ? data.order : order));
       setToast({ message: 'Tracking updated', type: 'success' });
     } catch (err) {
-      setToast({ message: 'Failed to check tracking', type: 'error' });
+      setToast({ message: err instanceof Error ? err.message : 'Failed to check tracking', type: 'error' });
     }
   };
 
@@ -538,9 +550,13 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     {billingStatus.planType === 'pro' ? (
                       <>
-                        <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-black rounded-full uppercase tracking-wider shadow-lg">
-                          ⚡ Pro
-                        </span>
+                        <div className="relative">
+                          <span className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full blur-md opacity-60 animate-pulse"></span>
+                          <span className="relative px-4 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-black rounded-full uppercase tracking-wider shadow-lg border border-purple-300/30">
+                            ⚡ Pro
+                          </span>
+                        </div>
+                        <span className="text-xs text-purple-300 font-medium">Unlimited</span>
                         <button onClick={handleManageSubscription}
                           className="text-slate-400 hover:text-white text-xs underline">
                           Manage
@@ -591,6 +607,28 @@ export default function DashboardPage() {
           {error && (
             <div className="bg-red-900/50 border-l-4 border-red-500 text-red-300 px-6 py-4 rounded-lg mb-6">
               <div className="flex items-center"><span className="text-2xl mr-3">⚠️</span><span className="font-semibold">{error}</span></div>
+            </div>
+          )}
+
+          {/* Pro Welcome Banner */}
+          {showProWelcome && billingStatus?.planType === 'pro' && (
+            <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 border border-purple-500/50 px-6 py-4 rounded-2xl mb-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 animate-pulse"></div>
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-3xl mr-4">🎉</span>
+                  <div>
+                    <span className="font-black text-xl text-white">Welcome to OrderWarden Pro!</span>
+                    <p className="text-sm text-purple-200 mt-1">You now have unlimited orders, priority support, and all Pro features unlocked.</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowProWelcome(false)}
+                  className="text-purple-300 hover:text-white transition-colors p-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
 
