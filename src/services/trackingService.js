@@ -230,16 +230,15 @@ function calculateRiskLevel(status, lastUpdateTime) {
     return "green";
   }
 
+  // Pre-transit is always green - label created, waiting for carrier pickup
+  if (normalizedStatus === "pre_transit") {
+    return "green";
+  }
+
   // Check time since last update for in_transit packages
   if (normalizedStatus === "in_transit") {
     const hoursSinceUpdate = (Date.now() - new Date(lastUpdateTime)) / (1000 * 60 * 60);
     if (hoursSinceUpdate > 72) return "red";
-    if (hoursSinceUpdate > 48) return "yellow";
-  }
-
-  // Pre-transit for more than 48 hours
-  if (normalizedStatus === "pre_transit") {
-    const hoursSinceUpdate = (Date.now() - new Date(lastUpdateTime)) / (1000 * 60 * 60);
     if (hoursSinceUpdate > 48) return "yellow";
   }
 
