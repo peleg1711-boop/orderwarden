@@ -517,6 +517,7 @@ export default function DashboardPage() {
   // Order Details Modal Component
   const OrderDetailsModal = ({ order, onClose }: { order: Order; onClose: () => void }) => {
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [trackingData, setTrackingData] = useState<{
       status: string;
       location: string | null;
@@ -531,6 +532,7 @@ export default function DashboardPage() {
     const fetchTrackingDetails = async () => {
       if (!userId) return;
       setLoading(true);
+      setError(null);
       try {
         const response = await fetch(`${API_URL}/api/orders/${order.id}/check`, {
           method: 'POST',
@@ -545,6 +547,7 @@ export default function DashboardPage() {
         setOrders(orders.map(o => o.id === order.id ? data.order : o));
       } catch (err) {
         console.error('Failed to fetch tracking:', err);
+        setError('Failed to load tracking history. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -573,7 +576,15 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-slate-700/50 rounded-xl p-4">
               <p className="text-slate-400 text-sm mb-1">Tracking Number</p>
-              <p className="text-white font-mono text-sm break-all">{order.trackingNumber}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-white font-mono text-sm break-all">{order.trackingNumber}</p>
+                <button onClick={() => copyToClipboard(order.trackingNumber)}
+                  className="p-1 hover:bg-slate-600 rounded transition-colors flex-shrink-0" title="Copy tracking number">
+                  <svg className="w-4 h-4 text-slate-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div className="bg-slate-700/50 rounded-xl p-4">
               <p className="text-slate-400 text-sm mb-1">Status</p>
@@ -605,7 +616,14 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {loading && !trackingData ? (
+            {error ? (
+              <div className="text-center py-4 text-red-400 bg-red-500/10 rounded-xl">
+                <svg className="w-8 h-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {error}
+              </div>
+            ) : loading && !trackingData ? (
               <div className="text-center py-8 text-slate-400">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-2"></div>
                 Loading tracking history...
