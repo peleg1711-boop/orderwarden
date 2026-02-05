@@ -967,10 +967,10 @@ export default function DashboardPage() {
                           <div className="font-bold text-white text-base">{order.orderId}</div>
                           <div className="text-sm text-slate-400 font-medium">{order.carrier || 'Unknown carrier'}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-slate-300 font-mono font-semibold">{order.trackingNumber}</span>
-                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.trackingNumber); }}
+                            <button onClick={() => copyToClipboard(order.trackingNumber)}
                               className="p-1 hover:bg-slate-700 rounded transition-colors" title="Copy tracking number">
                               <svg className="w-4 h-4 text-slate-500 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
