@@ -161,6 +161,9 @@ function normalize17TrackData(apiResponse, trackingNumber) {
   // 17TRACK v2.2 uses track_info structure
   const trackInfo = tracking.track_info;
 
+  // Debug: Log the trackInfo structure to understand what 17TRACK returns
+  console.log('[TrackingService] trackInfo structure:', JSON.stringify(trackInfo, null, 2));
+
   if (!trackInfo) {
     return {
       status: "unknown",
@@ -213,8 +216,10 @@ function normalize17TrackData(apiResponse, trackingNumber) {
   // Get carrier name
   const carrierName = getCarrierName(tracking.carrier) || 'unknown';
 
-  // Parse all tracking events from providers
+  // Parse all tracking events - check multiple possible locations in 17TRACK response
   let events = [];
+
+  // Try providers array first (17TRACK sometimes uses this structure)
   const providers = trackInfo.tracking?.providers || [];
   for (const provider of providers) {
     const providerEvents = provider.events || [];
@@ -227,11 +232,24 @@ function normalize17TrackData(apiResponse, trackingNumber) {
     }
   }
 
+  // Also try direct events array if present (alternative 17TRACK structure)
+  const directEvents = trackInfo.tracking?.events || trackInfo.events || [];
+  for (const evt of directEvents) {
+    events.push({
+      timestamp: evt.time_utc || evt.time_iso || new Date().toISOString(),
+      location: parseEventLocation(evt),
+      description: evt.description || 'Status update'
+    });
+  }
+
   // Sort events by timestamp (newest first)
   events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-  // If no events from providers, use latest_event as single event
+  console.log(`[TrackingService] Found ${events.length} events from providers/direct arrays`);
+
+  // If no events from providers, use latest_event as single event (guaranteed fallback)
   if (events.length === 0 && latestEvent) {
+    console.log('[TrackingService] Using latest_event as fallback');
     events.push({
       timestamp: latestEvent.time_utc || latestEvent.time_iso || new Date().toISOString(),
       location: location,
