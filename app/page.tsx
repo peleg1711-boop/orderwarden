@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { UserButton, useUser, useAuth } from '@clerk/nextjs';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -25,6 +25,16 @@ interface BillingStatus {
   monthlyOrderCount: number;
   limit: number | null;
   canCreateOrder: boolean;
+}
+
+interface ImpactSummary {
+  trackingChecks: number;
+  riskFlagged: number;
+  riskResolved: number;
+  deliveredAfterRisk: number;
+  estimatedRefundsAvoided: number;
+  rangeDays: number;
+  generatedAt: string;
 }
 
 interface TrackingEvent {
@@ -153,6 +163,9 @@ export default function DashboardPage() {
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [upgrading, setUpgrading] = useState(false);
   const [showProWelcome, setShowProWelcome] = useState(false);
+  const [impactSummary, setImpactSummary] = useState<ImpactSummary | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
+  const [impactError, setImpactError] = useState<string | null>(null);
 
 
   // Filter and sort orders
@@ -263,6 +276,7 @@ export default function DashboardPage() {
       fetchOrders();
       fetchEtsyStatus();
       fetchBillingStatus();
+      fetchImpactSummary();
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('etsy_connected') === 'true') {
@@ -324,6 +338,27 @@ export default function DashboardPage() {
       setBillingStatus(data);
     } catch (err) {
       console.error('Failed to fetch billing status:', err);
+    }
+  };
+
+  const fetchImpactSummary = async () => {
+    if (!userId) return;
+    try {
+      setImpactLoading(true);
+      setImpactError(null);
+      const response = await fetch(`${API_URL}/api/metrics/summary?range=30d`, {
+        headers: { 'x-clerk-user-id': userId }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load impact summary');
+      }
+      setImpactSummary(data);
+    } catch (err) {
+      console.error('Failed to fetch impact summary:', err);
+      setImpactError('Failed to load impact summary');
+    } finally {
+      setImpactLoading(false);
     }
   };
 
@@ -523,32 +558,49 @@ export default function DashboardPage() {
       location: string | null;
       events: TrackingEvent[];
     } | null>(null);
+    const abortRef = useRef<AbortController | null>(null);
 
     // Fetch tracking details on mount
     useEffect(() => {
       fetchTrackingDetails();
+      return () => {
+        abortRef.current?.abort();
+      };
     }, []);
 
     const fetchTrackingDetails = async () => {
       if (!userId) return;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       setLoading(true);
       setError(null);
       try {
         const response = await fetch(`${API_URL}/api/orders/${order.id}/check`, {
           method: 'POST',
-          headers: { 'x-clerk-user-id': userId }
+          headers: { 'x-clerk-user-id': userId },
+          signal: controller.signal
         });
         if (!response.ok) {
           throw new Error('Failed to fetch tracking');
         }
         const data = await response.json();
+        if (!data?.tracking) {
+          throw new Error('Tracking data unavailable');
+        }
         setTrackingData(data.tracking);
         // Update the orders list with the new data
-        setOrders(orders.map(o => o.id === order.id ? data.order : o));
+        setOrders(prev => prev.map(o => o.id === order.id ? data.order : o));
       } catch (err) {
-        console.error('Failed to fetch tracking:', err);
-        setError('Failed to load tracking history. Please try again.');
+        if (err instanceof Error && err.name === 'AbortError') {
+          setError('Tracking request timed out. Please try again.');
+        } else {
+          console.error('Failed to fetch tracking:', err);
+          setError('Failed to load tracking history. Please try again.');
+        }
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
@@ -840,6 +892,60 @@ export default function DashboardPage() {
             <div className="lg:col-span-2">
               <DeliveryRiskOverview orders={orders} />
             </div>
+          </div>
+
+          {/* Impact Summary */}
+          <div className="bg-slate-800/50 rounded-2xl shadow-xl p-6 border border-slate-700 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white">Impact This Month</h3>
+                <p className="text-xs text-slate-400">Last {impactSummary?.rangeDays || 30} days</p>
+              </div>
+              <button onClick={fetchImpactSummary} disabled={impactLoading}
+                className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 disabled:opacity-50">
+                <svg className={`w-4 h-4 ${impactLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {impactLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
+            {impactError ? (
+              <div className="text-center py-4 text-red-400 bg-red-500/10 rounded-xl">
+                {impactError}
+              </div>
+            ) : impactLoading && !impactSummary ? (
+              <div className="text-center py-6 text-slate-400">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mx-auto mb-2"></div>
+                Loading impact summary...
+              </div>
+            ) : impactSummary ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600/40">
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">Tracking Checks</div>
+                  <div className="text-2xl font-black text-white mt-1">{impactSummary.trackingChecks}</div>
+                </div>
+                <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600/40">
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">Risk Flagged</div>
+                  <div className="text-2xl font-black text-amber-300 mt-1">{impactSummary.riskFlagged}</div>
+                </div>
+                <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600/40">
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">Risks Resolved</div>
+                  <div className="text-2xl font-black text-emerald-300 mt-1">{impactSummary.riskResolved}</div>
+                </div>
+                <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600/40">
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">Refunds Avoided</div>
+                  <div className="text-2xl font-black text-emerald-300 mt-1">
+                    ${impactSummary.estimatedRefundsAvoided.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-slate-400">
+                No impact data yet. Track an order to get started.
+              </div>
+            )}
           </div>
 
           {/* Search and Filters */}
