@@ -515,7 +515,7 @@ export default function DashboardPage() {
   );
 
   // Order Details Modal Component
-  const OrderDetailsModal = ({ order, onClose }: { order: Order; onClose: () => void }) => {
+  const OrderDetailsModal = ({ order, onClose, userId }: { order: Order; onClose: () => void; userId: string }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [trackingData, setTrackingData] = useState<{
@@ -970,7 +970,7 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-slate-300 font-mono font-semibold">{order.trackingNumber}</span>
-                            <button onClick={() => copyToClipboard(order.trackingNumber)}
+                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.trackingNumber); }}
                               className="p-1 hover:bg-slate-700 rounded transition-colors" title="Copy tracking number">
                               <svg className="w-4 h-4 text-slate-500 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1029,8 +1029,8 @@ export default function DashboardPage() {
             onSuccess={() => { setShowAddOrder(false); fetchOrders(); setToast({ message: 'Order added!', type: 'success' }); }} />
         )}
 
-        {selectedOrder && (
-          <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        {selectedOrder && userId && (
+          <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} userId={userId} />
         )}
       </div>
     </>
