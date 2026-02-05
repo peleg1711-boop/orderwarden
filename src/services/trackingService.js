@@ -120,6 +120,25 @@ async function getTrackingInfo(trackingNumber, carrierCode) {
 
 
 /**
+ * Parse location from a tracking event
+ */
+function parseEventLocation(event) {
+  if (event?.location) {
+    return event.location;
+  }
+  if (event?.address) {
+    const addr = event.address;
+    const parts = [];
+    if (addr.city) parts.push(addr.city);
+    if (addr.state) parts.push(addr.state);
+    if (addr.country) parts.push(addr.country);
+    return parts.join(', ') || null;
+  }
+  return null;
+}
+
+
+/**
  * Normalize 17TRACK response to our standard format
  */
 function normalize17TrackData(apiResponse, trackingNumber) {
@@ -134,7 +153,8 @@ function normalize17TrackData(apiResponse, trackingNumber) {
       carrier: "unknown",
       lastUpdate: new Date(),
       location: null,
-      message: "No tracking data available"
+      message: "No tracking data available",
+      events: []
     };
   }
 
@@ -148,7 +168,8 @@ function normalize17TrackData(apiResponse, trackingNumber) {
       carrier: getCarrierName(tracking.carrier) || "unknown",
       lastUpdate: new Date(),
       location: null,
-      message: "No tracking info available"
+      message: "No tracking info available",
+      events: []
     };
   }
 
@@ -181,17 +202,7 @@ function normalize17TrackData(apiResponse, trackingNumber) {
   }
 
   // Get location from latest event
-  let location = null;
-  if (latestEvent?.location) {
-    location = latestEvent.location;
-  } else if (latestEvent?.address) {
-    const addr = latestEvent.address;
-    const parts = [];
-    if (addr.city) parts.push(addr.city);
-    if (addr.state) parts.push(addr.state);
-    if (addr.country) parts.push(addr.country);
-    location = parts.join(', ') || null;
-  }
+  const location = parseEventLocation(latestEvent);
 
   // Get message from latest event
   const message = latestEvent?.description || null;
@@ -202,6 +213,32 @@ function normalize17TrackData(apiResponse, trackingNumber) {
   // Get carrier name
   const carrierName = getCarrierName(tracking.carrier) || 'unknown';
 
+  // Parse all tracking events from providers
+  let events = [];
+  const providers = trackInfo.tracking?.providers || [];
+  for (const provider of providers) {
+    const providerEvents = provider.events || [];
+    for (const evt of providerEvents) {
+      events.push({
+        timestamp: evt.time_utc || evt.time_iso || new Date().toISOString(),
+        location: parseEventLocation(evt),
+        description: evt.description || 'Status update'
+      });
+    }
+  }
+
+  // Sort events by timestamp (newest first)
+  events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  // If no events from providers, use latest_event as single event
+  if (events.length === 0 && latestEvent) {
+    events.push({
+      timestamp: latestEvent.time_utc || latestEvent.time_iso || new Date().toISOString(),
+      location: location,
+      description: latestEvent.description || 'Status update'
+    });
+  }
+
   return {
     status,
     riskLevel,
@@ -209,7 +246,8 @@ function normalize17TrackData(apiResponse, trackingNumber) {
     lastUpdate,
     location,
     message,
-    deliveryDate: null
+    deliveryDate: null,
+    events
   };
 }
 
@@ -320,14 +358,35 @@ function normalizeCarrierSlug(carrier) {
 function getMockTrackingData(trackingNumber, carrier) {
   console.log('[TrackingService] Using mock data');
 
+  const now = new Date();
+  const yesterday = new Date(now - 24 * 60 * 60 * 1000);
+  const twoDaysAgo = new Date(now - 2 * 24 * 60 * 60 * 1000);
+
   return {
     status: "in_transit",
     riskLevel: "green",
     carrier: carrier || detectCarrier(trackingNumber) || "usps",
-    lastUpdate: new Date(),
+    lastUpdate: now,
     location: "In Transit",
     message: "Package is on its way",
-    deliveryDate: null
+    deliveryDate: null,
+    events: [
+      {
+        timestamp: now.toISOString(),
+        location: "Distribution Center, CA",
+        description: "Package in transit to destination"
+      },
+      {
+        timestamp: yesterday.toISOString(),
+        location: "Los Angeles, CA",
+        description: "Package arrived at carrier facility"
+      },
+      {
+        timestamp: twoDaysAgo.toISOString(),
+        location: "Los Angeles, CA",
+        description: "Shipping label created"
+      }
+    ]
   };
 }
 

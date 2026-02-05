@@ -287,7 +287,8 @@ router.post("/:id/check", async (req, res) => {
         lastUpdate: trackingResult.lastUpdate,
         location: trackingResult.location,
         riskLevel: trackingResult.riskLevel,
-        carrier: trackingResult.carrier
+        carrier: trackingResult.carrier,
+        events: trackingResult.events || []
       },
       recommendedMessage
     });
