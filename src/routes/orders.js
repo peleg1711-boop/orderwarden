@@ -357,9 +357,14 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    await prisma.order.delete({
-      where: { id }
-    });
+    await prisma.$transaction([
+      prisma.orderEvent.deleteMany({
+        where: { orderId: id }
+      }),
+      prisma.order.delete({
+        where: { id }
+      })
+    ]);
 
     console.log(`[Orders] Deleted order ${id} (user: ${userId})`);
     res.json({ success: true });
