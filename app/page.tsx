@@ -27,6 +27,12 @@ interface BillingStatus {
   canCreateOrder: boolean;
 }
 
+interface TrackingEvent {
+  timestamp: string;
+  location: string | null;
+  description: string;
+}
+
 // Toast notification component
 function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
   useEffect(() => {
@@ -119,6 +125,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddOrder, setShowAddOrder] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   // Search and filter state
@@ -507,6 +514,141 @@ export default function DashboardPage() {
     </th>
   );
 
+  // Order Details Modal Component
+  const OrderDetailsModal = ({ order, onClose }: { order: Order; onClose: () => void }) => {
+    const [loading, setLoading] = useState(false);
+    const [trackingData, setTrackingData] = useState<{
+      status: string;
+      location: string | null;
+      events: TrackingEvent[];
+    } | null>(null);
+
+    // Fetch tracking details on mount
+    useEffect(() => {
+      fetchTrackingDetails();
+    }, []);
+
+    const fetchTrackingDetails = async () => {
+      if (!userId) return;
+      setLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/api/orders/${order.id}/check`, {
+          method: 'POST',
+          headers: { 'x-clerk-user-id': userId }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch tracking');
+        }
+        const data = await response.json();
+        setTrackingData(data.tracking);
+        // Update the orders list with the new data
+        setOrders(orders.map(o => o.id === order.id ? data.order : o));
+      } catch (err) {
+        console.error('Failed to fetch tracking:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+           onClick={onClose}>
+        <div className="bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full p-8 border border-slate-700 max-h-[90vh] overflow-y-auto"
+             onClick={e => e.stopPropagation()}>
+
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-black text-white">Order {order.orderId}</h2>
+              <p className="text-slate-400">{order.carrier || 'Unknown carrier'}</p>
+            </div>
+            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Order Info Cards */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-slate-700/50 rounded-xl p-4">
+              <p className="text-slate-400 text-sm mb-1">Tracking Number</p>
+              <p className="text-white font-mono text-sm break-all">{order.trackingNumber}</p>
+            </div>
+            <div className="bg-slate-700/50 rounded-xl p-4">
+              <p className="text-slate-400 text-sm mb-1">Status</p>
+              <div className="mt-1">{getStatusBadge(order.lastStatus)}</div>
+            </div>
+            <div className="bg-slate-700/50 rounded-xl p-4">
+              <p className="text-slate-400 text-sm mb-1">Risk Level</p>
+              <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-black uppercase ${getRiskColor(order.riskLevel)}`}>
+                {getRiskLabel(order.riskLevel)}
+              </span>
+            </div>
+            <div className="bg-slate-700/50 rounded-xl p-4">
+              <p className="text-slate-400 text-sm mb-1">Last Update</p>
+              <p className="text-white text-sm">{order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}</p>
+            </div>
+          </div>
+
+          {/* Tracking Timeline */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Tracking History</h3>
+              <button onClick={fetchTrackingDetails} disabled={loading}
+                      className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 disabled:opacity-50">
+                <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
+            {loading && !trackingData ? (
+              <div className="text-center py-8 text-slate-400">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-2"></div>
+                Loading tracking history...
+              </div>
+            ) : trackingData?.events?.length ? (
+              <div className="space-y-0">
+                {trackingData.events.map((event, index) => (
+                  <div key={index} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-blue-500' : 'bg-slate-600'}`} />
+                      {index < trackingData.events.length - 1 && (
+                        <div className="w-0.5 flex-1 bg-slate-600 min-h-[40px]" />
+                      )}
+                    </div>
+                    <div className="flex-1 pb-4">
+                      <p className="text-white font-medium">{event.description}</p>
+                      <p className="text-slate-400 text-sm">{event.location || 'Location unavailable'}</p>
+                      <p className="text-slate-500 text-xs">{new Date(event.timestamp).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400 bg-slate-700/30 rounded-xl">
+                <svg className="w-12 h-12 mx-auto mb-2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                No tracking events available yet
+              </div>
+            )}
+          </div>
+
+          {/* Close Button */}
+          <button onClick={onClose}
+                  className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  };
+
 
   if (loading) {
     return (
@@ -795,8 +937,10 @@ export default function DashboardPage() {
 
                   <tbody className="divide-y divide-slate-700">
                     {filteredOrders.map((order) => (
-                      <tr key={order.id} className={`hover:bg-slate-700/50 transition-colors ${selectedOrders.has(order.id) ? 'bg-blue-900/20' : ''}`}>
-                        <td className="px-4 py-4">
+                      <tr key={order.id}
+                          onClick={() => setSelectedOrder(order)}
+                          className={`hover:bg-slate-700/50 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-blue-900/20' : ''}`}>
+                        <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                           <input type="checkbox" checked={selectedOrders.has(order.id)}
                             onChange={() => toggleSelectOrder(order.id)}
                             className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500" />
@@ -830,7 +974,7 @@ export default function DashboardPage() {
                           {order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}
                         </td>
 
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => checkTracking(order.id)}
                               className="group p-1.5 rounded-lg hover:bg-blue-500/20 transition-all"
@@ -865,6 +1009,10 @@ export default function DashboardPage() {
         {showAddOrder && userId && (
           <AddOrderModal userId={userId} onClose={() => setShowAddOrder(false)}
             onSuccess={() => { setShowAddOrder(false); fetchOrders(); setToast({ message: 'Order added!', type: 'success' }); }} />
+        )}
+
+        {selectedOrder && (
+          <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
         )}
       </div>
     </>
