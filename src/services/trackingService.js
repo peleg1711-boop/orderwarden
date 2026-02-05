@@ -247,14 +247,24 @@ function normalize17TrackData(apiResponse, trackingNumber) {
 
   console.log(`[TrackingService] Found ${events.length} events from providers/direct arrays`);
 
-  // If no events from providers, use latest_event as single event (guaranteed fallback)
-  if (events.length === 0 && latestEvent) {
-    console.log('[TrackingService] Using latest_event as fallback');
-    events.push({
-      timestamp: latestEvent.time_utc || latestEvent.time_iso || new Date().toISOString(),
-      location: location,
-      description: latestEvent.description || 'Status update'
-    });
+  // Always ensure at least one event exists
+  if (events.length === 0) {
+    if (latestEvent) {
+      console.log('[TrackingService] Using latest_event as fallback');
+      events.push({
+        timestamp: latestEvent.time_utc || latestEvent.time_iso || new Date().toISOString(),
+        location: location,
+        description: latestEvent.description || 'Status update'
+      });
+    } else {
+      // Ultimate fallback - create event from status/location data
+      console.log('[TrackingService] Creating synthetic event from status');
+      events.push({
+        timestamp: lastUpdate.toISOString(),
+        location: location || 'Location pending',
+        description: message || `Package status: ${status.replace('_', ' ')}`
+      });
+    }
   }
 
   return {
