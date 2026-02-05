@@ -493,12 +493,12 @@ export default function DashboardPage() {
     return <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${info.color}`}>{info.label}</span>;
   };
 
-  const SortHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
-    <th 
+  const SortHeader = ({ field, children, center = false }: { field: string; children: React.ReactNode; center?: boolean }) => (
+    <th
       onClick={() => handleSort(field)}
-      className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none"
+      className={`px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none ${center ? 'text-center' : 'text-left'}`}
     >
-      <div className="flex items-center gap-1">
+      <div className={`flex items-center gap-1 ${center ? 'justify-center' : ''}`}>
         {children}
         {sortField === field && (
           <span className="text-blue-400">{sortDirection === 'asc' ? '↑' : '↓'}</span>
@@ -786,9 +786,9 @@ export default function DashboardPage() {
                       </th>
                       <SortHeader field="orderId">Order</SortHeader>
                       <SortHeader field="trackingNumber">Tracking</SortHeader>
-                      <SortHeader field="lastStatus">Status</SortHeader>
-                      <SortHeader field="riskLevel">Risk</SortHeader>
-                      <SortHeader field="lastUpdateAt">Last Update</SortHeader>
+                      <SortHeader field="lastStatus" center>Status</SortHeader>
+                      <SortHeader field="riskLevel" center>Risk</SortHeader>
+                      <SortHeader field="lastUpdateAt" center>Last Update</SortHeader>
                       <th className="px-6 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -816,17 +816,17 @@ export default function DashboardPage() {
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           {order.lastStatus ? getStatusBadge(order.lastStatus) : <span className="text-slate-500">—</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           {order.riskLevel ? (
                             <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${getRiskColor(order.riskLevel)}`}>
                               {getRiskLabel(order.riskLevel)}
                             </span>
                           ) : <span className="text-slate-500">—</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400 text-center">
                           {order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}
                         </td>
 
