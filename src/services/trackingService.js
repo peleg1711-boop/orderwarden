@@ -3,6 +3,7 @@
 
 const TRACK17_API_KEY = process.env.TRACK17_API_KEY;
 const TRACK17_API_URL = 'https://api.17track.net/track/v2.2';
+const TRACK17_TIMEOUT_MS = Number(process.env.TRACK17_TIMEOUT_MS || 12000);
 
 // 17TRACK carrier codes
 const CARRIER_CODES = {
@@ -11,6 +12,13 @@ const CARRIER_CODES = {
   fedex: 100003,
   dhl: 100001
 };
+
+function fetchWithTimeout(url, options, timeoutMs = TRACK17_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+}
 
 /**
  * Check tracking status for a package using 17TRACK
@@ -67,7 +75,7 @@ async function registerTracking(trackingNumber, carrierCode) {
 
   console.log(`[TrackingService] Registering tracking:`, JSON.stringify(body));
 
-  const response = await fetch(`${TRACK17_API_URL}/register`, {
+  const response = await fetchWithTimeout(`${TRACK17_API_URL}/register`, {
     method: 'POST',
     headers: {
       '17token': TRACK17_API_KEY,
@@ -99,7 +107,7 @@ async function getTrackingInfo(trackingNumber, carrierCode) {
 
   console.log(`[TrackingService] Getting tracking info:`, JSON.stringify(body));
 
-  const response = await fetch(`${TRACK17_API_URL}/gettrackinfo`, {
+  const response = await fetchWithTimeout(`${TRACK17_API_URL}/gettrackinfo`, {
     method: 'POST',
     headers: {
       '17token': TRACK17_API_KEY,

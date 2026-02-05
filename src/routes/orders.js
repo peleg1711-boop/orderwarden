@@ -277,6 +277,38 @@ router.post("/:id/check", async (req, res) => {
       order.orderId
     );
 
+    // 4b. Log tracking events for impact metrics (non-blocking)
+    const eventData = [];
+    eventData.push({
+      orderId: order.id,
+      type: "tracking_checked",
+      metadata: {
+        status: trackingResult.status,
+        carrier: trackingResult.carrier || order.carrier || null
+      }
+    });
+    if (order.lastStatus !== trackingResult.status) {
+      eventData.push({
+        orderId: order.id,
+        type: "status_changed",
+        metadata: { from: order.lastStatus, to: trackingResult.status }
+      });
+    }
+    if (order.riskLevel !== trackingResult.riskLevel) {
+      eventData.push({
+        orderId: order.id,
+        type: "risk_changed",
+        metadata: { from: order.riskLevel, to: trackingResult.riskLevel }
+      });
+    }
+    if (eventData.length > 0) {
+      try {
+        await prisma.orderEvent.createMany({ data: eventData });
+      } catch (eventError) {
+        console.error("[Orders] Event log error:", eventError);
+      }
+    }
+
     console.log(`[Orders] Updated order ${id} - Risk: ${updatedOrder.riskLevel}`);
 
     // 5. Return everything

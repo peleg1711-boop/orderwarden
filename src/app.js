@@ -50,6 +50,7 @@ app.use("/api/orders", require("./routes/orders"));
 app.use("/api", require("./routes/me"));
 app.use("/api/etsy", require("./routes/etsy"));
 app.use("/api/cron", require("./routes/cron"));
+app.use("/api/metrics", require("./routes/metrics"));
 app.use("/api/billing", require("./routes/billing"));
 
 // 404 handler

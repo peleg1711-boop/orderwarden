@@ -81,12 +81,27 @@ model Order {
   lastUpdateAt    DateTime?
   riskLevel       String?
 
+  events          OrderEvent[]
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@index([orderId])
   @@index([trackingNumber])
   @@index([storeId])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model MessageTemplate {
