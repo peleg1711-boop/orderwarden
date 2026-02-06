@@ -789,7 +789,7 @@ export default function DashboardPage() {
           {/* Quick Links */}
           <div className="flex gap-3 mb-6">
             <a
-              href={`https://www.etsy.com/your/orders/sold/${order.orderId}`}
+              href={`https://www.etsy.com/your/orders/sold/completed?order_id=${order.orderId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 rounded-xl transition-colors text-center text-sm flex items-center justify-center gap-2"
@@ -1298,7 +1298,7 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <a
-                              href={`https://www.etsy.com/your/orders/sold/${order.orderId}`}
+                              href={`https://www.etsy.com/your/orders/sold/completed?order_id=${order.orderId}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
