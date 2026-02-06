@@ -815,61 +815,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Tracking Timeline */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Tracking History</h3>
-              <button onClick={fetchTrackingDetails} disabled={loading}
-                      className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 disabled:opacity-50">
-                <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {loading ? 'Refreshing...' : 'Refresh'}
-              </button>
-            </div>
-
-            {error ? (
-              <div className="text-center py-4 text-red-400 bg-red-500/10 rounded-xl">
-                <svg className="w-8 h-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {error}
-              </div>
-            ) : loading && !trackingData ? (
-              <div className="text-center py-8 text-slate-400">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-2"></div>
-                Loading tracking history...
-              </div>
-            ) : trackingData?.events?.length ? (
-              <div className="space-y-0">
-                {trackingData.events.map((event, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-blue-500' : 'bg-slate-600'}`} />
-                      {index < trackingData.events.length - 1 && (
-                        <div className="w-0.5 flex-1 bg-slate-600 min-h-[40px]" />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <p className="text-white font-medium">{event.description}</p>
-                      <p className="text-slate-400 text-sm">{event.location || 'Location unavailable'}</p>
-                      <p className="text-slate-500 text-xs">{new Date(event.timestamp).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-400 bg-slate-700/30 rounded-xl">
-                <svg className="w-12 h-12 mx-auto mb-2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                No tracking events available yet
-              </div>
-            )}
-          </div>
-
           {/* Close Button */}
           <button onClick={onClose}
                   className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors">

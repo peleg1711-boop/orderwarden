@@ -195,7 +195,7 @@ export default function SettingsPage() {
   };
 
   const connectEtsy = () => {
-    window.location.href = `${API_URL}/api/etsy/auth?userId=${userId}`;
+    window.location.href = `${API_URL}/api/etsy/auth?x-clerk-user-id=${userId}`;
   };
 
   // Toast auto-dismiss
