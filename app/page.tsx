@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { UserButton, useUser, useAuth } from '@clerk/nextjs';
+import Link from 'next/link';
+import { ConfirmationModal } from '../components/ConfirmationModal';
+import { NotificationBell } from '../components/NotificationBell';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -167,6 +170,34 @@ export default function DashboardPage() {
   const [impactLoading, setImpactLoading] = useState(false);
   const [impactError, setImpactError] = useState<string | null>(null);
 
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Bulk check tracking state
+  const [bulkCheckLoading, setBulkCheckLoading] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ORDERS_PER_PAGE = 20;
+
+  // Dashboard date range state
+  const [dashboardRange, setDashboardRange] = useState<'today' | '7days' | '30days' | 'all'>('all');
+
+  // Dashboard filtered orders for stat cards
+  const dashboardOrders = useMemo(() => {
+    if (dashboardRange === 'all') return orders;
+    const now = new Date();
+    const cutoffs: Record<string, Date> = {
+      today: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      '7days': new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+      '30days': new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+    };
+    return orders.filter(o => new Date(o.createdAt) >= cutoffs[dashboardRange]);
+  }, [orders, dashboardRange]);
 
   // Filter and sort orders
   const filteredOrders = useMemo(() => {
@@ -237,6 +268,17 @@ export default function DashboardPage() {
     return result;
   }, [orders, searchQuery, riskFilter, statusFilter, dateFilter, sortField, sortDirection]);
 
+  // Pagination
+  const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ORDERS_PER_PAGE;
+    return filteredOrders.slice(start, start + ORDERS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, riskFilter, statusFilter, dateFilter]);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -258,10 +300,10 @@ export default function DashboardPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedOrders.size === filteredOrders.length) {
+    if (selectedOrders.size === paginatedOrders.length) {
       setSelectedOrders(new Set());
     } else {
-      setSelectedOrders(new Set(filteredOrders.map(o => o.id)));
+      setSelectedOrders(new Set(paginatedOrders.map(o => o.id)));
     }
   };
 
@@ -459,11 +501,20 @@ export default function DashboardPage() {
     }
   };
 
+  const initiateDeleteOrder = (orderId: string) => {
+    setConfirmDialog({
+      title: 'Delete Order?',
+      message: 'Are you sure you want to delete this order? This action cannot be undone.',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        deleteOrder(orderId);
+      }
+    });
+  };
 
   const deleteSelectedOrders = async () => {
     if (!userId || selectedOrders.size === 0) return;
-    if (!confirm(`Delete ${selectedOrders.size} selected orders?`)) return;
-    
+
     let deleted = 0;
     for (const orderId of selectedOrders) {
       try {
@@ -474,10 +525,22 @@ export default function DashboardPage() {
         if (response.ok) deleted++;
       } catch (err) {}
     }
-    
+
     setOrders(orders.filter(o => !selectedOrders.has(o.id)));
     setSelectedOrders(new Set());
     setToast({ message: `Deleted ${deleted} orders`, type: 'success' });
+  };
+
+  const initiateDeleteSelected = () => {
+    if (selectedOrders.size === 0) return;
+    setConfirmDialog({
+      title: `Delete ${selectedOrders.size} Orders?`,
+      message: `Are you sure you want to delete ${selectedOrders.size} selected orders? This action cannot be undone.`,
+      onConfirm: () => {
+        setConfirmDialog(null);
+        deleteSelectedOrders();
+      }
+    });
   };
 
   const checkTracking = async (orderId: string) => {
@@ -500,6 +563,64 @@ export default function DashboardPage() {
     }
   };
 
+  const checkSelectedTracking = async () => {
+    if (!userId || selectedOrders.size === 0) return;
+    setBulkCheckLoading(true);
+    let checked = 0;
+    let failed = 0;
+
+    const orderIds = Array.from(selectedOrders);
+    const results = await Promise.allSettled(
+      orderIds.map(orderId =>
+        fetch(`${API_URL}/api/orders/${orderId}/check`, {
+          method: 'POST',
+          headers: { 'x-clerk-user-id': userId }
+        }).then(res => res.json())
+      )
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.order) {
+        checked++;
+        setOrders(prev => prev.map(o => o.id === orderIds[index] ? result.value.order : o));
+      } else {
+        failed++;
+      }
+    });
+
+    setBulkCheckLoading(false);
+    setSelectedOrders(new Set());
+    setToast({
+      message: failed > 0 ? `Updated ${checked} orders. ${failed} failed.` : `Updated tracking for ${checked} orders`,
+      type: failed > 0 ? 'info' : 'success'
+    });
+  };
+
+  // CSV Export function
+  const exportToCSV = () => {
+    const headers = ['Etsy Order ID', 'Tracking Number', 'Carrier', 'Status', 'Risk Level', 'Last Update'];
+    const rows = filteredOrders.map(o => [
+      o.orderId,
+      o.trackingNumber,
+      o.carrier || '',
+      o.lastStatus || '',
+      getRiskLabel(o.riskLevel),
+      o.lastUpdateAt ? new Date(o.lastUpdateAt).toISOString() : ''
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `orderwarden-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setToast({ message: `Exported ${filteredOrders.length} orders`, type: 'success' });
+  };
 
   const getRiskColor = (riskLevel: string | null | undefined): string => {
     if (!riskLevel) return 'bg-gray-700 text-gray-300';
@@ -548,6 +669,17 @@ export default function DashboardPage() {
       </div>
     </th>
   );
+
+  // Carrier tracking URL helper
+  const getCarrierTrackingUrl = (carrier: string, trackingNumber: string): string => {
+    const urls: Record<string, string> = {
+      usps: `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`,
+      ups: `https://www.ups.com/track?tracknum=${trackingNumber}`,
+      fedex: `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`,
+      dhl: `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNumber}`,
+    };
+    return urls[carrier.toLowerCase()] || `https://www.google.com/search?q=${carrier}+tracking+${trackingNumber}`;
+  };
 
   // Order Details Modal Component
   const OrderDetailsModal = ({ order, onClose, userId }: { order: Order; onClose: () => void; userId: string }) => {
@@ -652,6 +784,35 @@ export default function DashboardPage() {
               <p className="text-slate-400 text-sm mb-1">Last Update</p>
               <p className="text-white text-sm">{order.lastUpdateAt ? new Date(order.lastUpdateAt).toLocaleString() : 'Never'}</p>
             </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="flex gap-3 mb-6">
+            <a
+              href={`https://www.etsy.com/your/orders/sold/${order.orderId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 rounded-xl transition-colors text-center text-sm flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View on Etsy
+            </a>
+            {order.carrier && (
+              <a
+                href={getCarrierTrackingUrl(order.carrier, order.trackingNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2.5 rounded-xl transition-colors text-center text-sm flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Track on {order.carrier.toUpperCase()}
+              </a>
+            )}
           </div>
 
           {/* Tracking Timeline */}
@@ -806,6 +967,17 @@ export default function DashboardPage() {
                   className="bg-blue-600 text-white px-6 py-3 rounded-full font-bold text-base hover:bg-blue-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-blue-500/50">
                   + Add Order
                 </button>
+                {userId && <NotificationBell userId={userId} onOrderClick={(orderId) => {
+                  const order = orders.find(o => o.id === orderId || o.orderId === orderId);
+                  if (order) setSelectedOrder(order);
+                }} />}
+                <Link href="/settings" className="p-2 rounded-full hover:bg-slate-700 transition-colors" title="Settings">
+                  <svg className="w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </Link>
                 <div className="bg-slate-700 rounded-full p-1 shadow-lg">
                   <UserButton afterSignOutUrl="https://landing.orderwarden.com" />
                 </div>
@@ -881,16 +1053,31 @@ export default function DashboardPage() {
           )}
 
 
+          {/* Stats Cards Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white">Overview</h2>
+            <select
+              value={dashboardRange}
+              onChange={(e) => setDashboardRange(e.target.value as 'today' | '7days' | '30days' | 'all')}
+              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2024%2024%22%20fill%3d%22none%22%20stroke%3d%22%2394a3b8%22%20stroke-width%3d%222%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%3e%3cpolyline%20points%3d%226%209%2012%2015%2018%209%22%3e%3c%2fpolyline%3e%3c%2fsvg%3e')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat pr-8"
+            >
+              <option value="today">Today</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div className="lg:col-span-1 grid grid-cols-2 lg:grid-cols-1 gap-4">
-              <StatCard label="Total Orders" value={orders.length} icon="📦" color="from-blue-500 to-sky-600" />
-              <StatCard label="At Risk" value={orders.filter(o => o.riskLevel === 'red' || o.riskLevel === 'yellow').length} icon="⚠️" color="from-amber-500 to-yellow-600" />
-              <StatCard label="In Transit" value={orders.filter(o => o.lastStatus === 'in_transit').length} icon="🚚" color="from-indigo-500 to-purple-600" />
-              <StatCard label="Delivered" value={orders.filter(o => o.lastStatus === 'delivered').length} icon="✅" color="from-emerald-500 to-green-600" />
+              <StatCard label="Total Orders" value={dashboardOrders.length} icon="📦" color="from-blue-500 to-sky-600" />
+              <StatCard label="At Risk" value={dashboardOrders.filter(o => o.riskLevel === 'red' || o.riskLevel === 'yellow').length} icon="⚠️" color="from-amber-500 to-yellow-600" />
+              <StatCard label="In Transit" value={dashboardOrders.filter(o => o.lastStatus === 'in_transit').length} icon="🚚" color="from-indigo-500 to-purple-600" />
+              <StatCard label="Delivered" value={dashboardOrders.filter(o => o.lastStatus === 'delivered').length} icon="✅" color="from-emerald-500 to-green-600" />
             </div>
             <div className="lg:col-span-2">
-              <DeliveryRiskOverview orders={orders} />
+              <DeliveryRiskOverview orders={dashboardOrders} />
             </div>
           </div>
 
@@ -998,12 +1185,51 @@ export default function DashboardPage() {
                 <option value="90days">Last 90 Days</option>
               </select>
               
-              {/* Bulk Delete */}
+              {/* Export CSV */}
+              <button
+                onClick={exportToCSV}
+                disabled={filteredOrders.length === 0}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export CSV
+              </button>
+
+              {/* Bulk Actions */}
               {selectedOrders.size > 0 && (
-                <button onClick={deleteSelectedOrders}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-all">
-                  🗑️ Delete ({selectedOrders.size})
-                </button>
+                <>
+                  <button
+                    onClick={checkSelectedTracking}
+                    disabled={bulkCheckLoading}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {bulkCheckLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Check Tracking ({selectedOrders.size})
+                      </>
+                    )}
+                  </button>
+                  <button onClick={initiateDeleteSelected}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-all flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete ({selectedOrders.size})
+                  </button>
+                </>
               )}
             </div>
             
@@ -1046,7 +1272,7 @@ export default function DashboardPage() {
                   <thead className="bg-slate-900">
                     <tr>
                       <th className="px-4 py-4 text-left">
-                        <input type="checkbox" checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
+                        <input type="checkbox" checked={selectedOrders.size === paginatedOrders.length && paginatedOrders.length > 0}
                           onChange={toggleSelectAll}
                           className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500" />
                       </th>
@@ -1060,7 +1286,7 @@ export default function DashboardPage() {
                   </thead>
 
                   <tbody className="divide-y divide-slate-700">
-                    {filteredOrders.map((order) => (
+                    {paginatedOrders.map((order) => (
                       <tr key={order.id}
                           onClick={() => setSelectedOrder(order)}
                           className={`hover:bg-slate-700/50 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-blue-900/20' : ''}`}>
@@ -1070,7 +1296,17 @@ export default function DashboardPage() {
                             className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500" />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-bold text-white text-base">{order.orderId}</div>
+                          <div>
+                            <a
+                              href={`https://www.etsy.com/your/orders/sold/${order.orderId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-bold text-blue-400 hover:text-blue-300 text-base hover:underline"
+                            >
+                              #{order.orderId}
+                            </a>
+                          </div>
                           <div className="text-sm text-slate-400 font-medium">{order.carrier || 'Unknown carrier'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
@@ -1110,7 +1346,7 @@ export default function DashboardPage() {
                                   d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                               </svg>
                             </button>
-                            <button onClick={() => deleteOrder(order.id)}
+                            <button onClick={() => initiateDeleteOrder(order.id)}
                               className="group p-1.5 rounded-lg hover:bg-red-500/20 transition-all"
                               title="Delete order">
                               <svg className="w-5 h-5 text-slate-400 group-hover:text-red-400 transition-colors"
@@ -1126,6 +1362,59 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-900/50 border-t border-slate-700">
+                  <div className="text-sm text-slate-400">
+                    Showing {((currentPage - 1) * ORDERS_PER_PAGE) + 1}-{Math.min(currentPage * ORDERS_PER_PAGE, filteredOrders.length)} of {filteredOrders.length} orders
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="First page"
+                    >
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Previous page"
+                    >
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="px-4 py-2 text-white font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Next page"
+                    >
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Last page"
+                    >
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -1137,6 +1426,18 @@ export default function DashboardPage() {
 
         {selectedOrder && userId && (
           <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} userId={userId} />
+        )}
+
+        {confirmDialog && (
+          <ConfirmationModal
+            isOpen={true}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            confirmText="Delete"
+            variant="danger"
+            onConfirm={confirmDialog.onConfirm}
+            onCancel={() => setConfirmDialog(null)}
+          />
         )}
       </div>
     </>
