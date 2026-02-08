@@ -63,7 +63,7 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   );
 }
 
-function DeliveryRiskOverview({ orders }: { orders: Order[] }) {
+function DeliveryRiskOverview({ orders, onOrderClick }: { orders: Order[]; onOrderClick?: (orderId: string) => void }) {
   const healthyCount = orders.filter(o => o.riskLevel === 'green').length;
   const attentionCount = orders.filter(o => o.riskLevel === 'yellow').length;
   const highRiskCount = orders.filter(o => o.riskLevel === 'red').length;
@@ -104,13 +104,15 @@ function DeliveryRiskOverview({ orders }: { orders: Order[] }) {
         <h4 className="text-sm font-bold text-slate-300 mb-3">Recent At-Risk Orders</h4>
         <div className="space-y-3">
           {atRiskOrders.length > 0 ? atRiskOrders.map(order => (
-            <div key={order.id} className="flex items-center p-2 rounded-lg hover:bg-slate-700/50 transition-colors">
+            <div key={order.id}
+              onClick={() => onOrderClick?.(order.id)}
+              className="flex items-center p-2 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer">
               <span className={`h-3 w-3 rounded-full mr-3 ${order.riskLevel === 'red' ? 'bg-red-500' : 'bg-amber-400'}`}></span>
               <div className="flex-1">
                 <p className="text-sm font-bold text-white">{order.orderId}</p>
                 <p className="text-xs text-slate-400">{order.lastStatus || 'Unknown'}</p>
               </div>
-              <span className={`text-xs font-bold ${order.riskLevel === 'red' ? 'text-red-400' : 'text-amber-300'}`}>
+              <span className={`text-xs font-bold px-2 py-1 rounded-lg ${order.riskLevel === 'red' ? 'text-red-400 bg-red-500/20' : 'text-amber-300 bg-amber-500/20'}`}>
                 {order.riskLevel === 'red' ? 'Urgent' : 'Follow up'}
               </span>
             </div>
@@ -179,6 +181,9 @@ export default function DashboardPage() {
 
   // Bulk check tracking state
   const [bulkCheckLoading, setBulkCheckLoading] = useState(false);
+
+  // Per-order check tracking loading state
+  const [checkingOrderIds, setCheckingOrderIds] = useState<Set<string>>(new Set());
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -388,7 +393,13 @@ export default function DashboardPage() {
     try {
       setImpactLoading(true);
       setImpactError(null);
-      const response = await fetch(`${API_URL}/api/metrics/summary?range=30d`, {
+
+      // Calculate days since start of current calendar month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const daysSinceMonthStart = Math.ceil((now.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) || 1;
+
+      const response = await fetch(`${API_URL}/api/metrics/summary?range=${daysSinceMonthStart}d`, {
         headers: { 'x-clerk-user-id': userId }
       });
       const data = await response.json();
@@ -545,6 +556,7 @@ export default function DashboardPage() {
 
   const checkTracking = async (orderId: string) => {
     if (!userId) return;
+    setCheckingOrderIds(prev => new Set(prev).add(orderId));
     try {
       const response = await fetch(`${API_URL}/api/orders/${orderId}/check`, {
         method: 'POST',
@@ -560,6 +572,12 @@ export default function DashboardPage() {
       setToast({ message: 'Tracking updated', type: 'success' });
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : 'Failed to check tracking', type: 'error' });
+    } finally {
+      setCheckingOrderIds(prev => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
     }
   };
 
@@ -598,7 +616,7 @@ export default function DashboardPage() {
 
   // CSV Export function
   const exportToCSV = () => {
-    const headers = ['Etsy Order ID', 'Tracking Number', 'Carrier', 'Status', 'Risk Level', 'Last Update'];
+    const headers = ['Order Name', 'Tracking Number', 'Carrier', 'Status', 'Risk Level', 'Last Update'];
     const rows = filteredOrders.map(o => [
       o.orderId,
       o.trackingNumber,
@@ -620,6 +638,16 @@ export default function DashboardPage() {
     URL.revokeObjectURL(url);
 
     setToast({ message: `Exported ${filteredOrders.length} orders`, type: 'success' });
+  };
+
+  // Scroll to order row and highlight it
+  const handleScrollToOrder = (orderId: string) => {
+    const row = document.querySelector(`[data-order-id="${orderId}"]`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.add('highlight-pulse');
+      setTimeout(() => row.classList.remove('highlight-pulse'), 2000);
+    }
   };
 
   const getRiskColor = (riskLevel: string | null | undefined): string => {
@@ -848,6 +876,11 @@ export default function DashboardPage() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        .highlight-pulse { animation: highlightPulse 2s ease-out; }
+        @keyframes highlightPulse {
+          0%, 100% { background-color: transparent; }
+          25%, 75% { background-color: rgba(59, 130, 246, 0.3); }
+        }
       `}</style>
       
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -1022,7 +1055,7 @@ export default function DashboardPage() {
               <StatCard label="Delivered" value={dashboardOrders.filter(o => o.lastStatus === 'delivered').length} icon="✅" color="from-emerald-500 to-green-600" />
             </div>
             <div className="lg:col-span-2">
-              <DeliveryRiskOverview orders={dashboardOrders} />
+              <DeliveryRiskOverview orders={dashboardOrders} onOrderClick={handleScrollToOrder} />
             </div>
           </div>
 
@@ -1031,7 +1064,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-lg font-bold text-white">Impact This Month</h3>
-                <p className="text-xs text-slate-400">Last {impactSummary?.rangeDays || 30} days</p>
+                <p className="text-xs text-slate-400">This calendar month</p>
               </div>
               <button onClick={fetchImpactSummary} disabled={impactLoading}
                 className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 disabled:opacity-50">
@@ -1233,6 +1266,7 @@ export default function DashboardPage() {
                   <tbody className="divide-y divide-slate-700">
                     {paginatedOrders.map((order) => (
                       <tr key={order.id}
+                          data-order-id={order.id}
                           onClick={() => setSelectedOrder(order)}
                           className={`hover:bg-slate-700/50 transition-colors cursor-pointer ${selectedOrders.has(order.id) ? 'bg-blue-900/20' : ''}`}>
                         <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
@@ -1242,15 +1276,12 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <a
-                              href={`https://www.etsy.com/your/orders/sold/completed?order_id=${order.orderId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-bold text-blue-400 hover:text-blue-300 text-base hover:underline"
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                              className="font-bold text-blue-400 hover:text-blue-300 text-base hover:underline text-left"
                             >
                               #{order.orderId}
-                            </a>
+                            </button>
                           </div>
                           <div className="text-sm text-slate-400 font-medium">{order.carrier || 'Unknown carrier'}</div>
                         </td>
@@ -1281,15 +1312,24 @@ export default function DashboardPage() {
 
                         <td className="px-6 py-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => checkTracking(order.id)}
-                              className="group p-1.5 rounded-lg hover:bg-blue-500/20 transition-all"
+                            <button
+                              onClick={() => checkTracking(order.id)}
+                              disabled={checkingOrderIds.has(order.id)}
+                              className="group p-1.5 rounded-lg hover:bg-blue-500/20 transition-all disabled:opacity-50"
                               title="Check tracking">
-                              <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-400 transition-colors"
-                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round"
-                                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                              </svg>
+                              {checkingOrderIds.has(order.id) ? (
+                                <svg className="w-5 h-5 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-400 transition-colors"
+                                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                  strokeWidth={1.5} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round"
+                                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                              )}
                             </button>
                             <button onClick={() => initiateDeleteOrder(order.id)}
                               className="group p-1.5 rounded-lg hover:bg-red-500/20 transition-all"
@@ -1407,9 +1447,19 @@ function AddOrderModal({ userId, onClose, onSuccess }: { userId: string; onClose
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [upgradeRequired, setUpgradeRequired] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ orderId?: string; trackingNumber?: string }>({});
+
+  const validateForm = (): boolean => {
+    const errors: typeof fieldErrors = {};
+    if (!formData.orderId.trim()) errors.orderId = 'Order name is required';
+    if (!formData.trackingNumber.trim()) errors.trackingNumber = 'Tracking number is required';
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
     setLoading(true);
     setError(null);
     setUpgradeRequired(false);
@@ -1479,18 +1529,40 @@ function AddOrderModal({ userId, onClose, onSuccess }: { userId: string; onClose
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-300 mb-2">Etsy Order ID *</label>
-            <input type="text" required value={formData.orderId}
-              onChange={(e) => setFormData({ ...formData, orderId: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-700 text-white rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 font-medium"
-              placeholder="e.g., 1234567890" />
+            <label className="block text-sm font-bold text-slate-300 mb-2">Order Name *</label>
+            <input type="text" value={formData.orderId}
+              onChange={(e) => {
+                setFormData({ ...formData, orderId: e.target.value });
+                if (fieldErrors.orderId) setFieldErrors(prev => ({ ...prev, orderId: undefined }));
+              }}
+              className={`w-full px-4 py-3 bg-slate-900 border-2 ${fieldErrors.orderId ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-700 focus:ring-blue-500/50 focus:border-blue-500'} text-white rounded-xl focus:ring-4 font-medium`}
+              placeholder="e.g., Etsy #3960433496 or Sarah's necklace" />
+            {fieldErrors.orderId && (
+              <p className="mt-1.5 text-sm text-red-400 flex items-center gap-1.5">
+                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {fieldErrors.orderId}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Tracking Number *</label>
-            <input type="text" required value={formData.trackingNumber}
-              onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-900 border-2 border-slate-700 text-white rounded-xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 font-mono"
+            <input type="text" value={formData.trackingNumber}
+              onChange={(e) => {
+                setFormData({ ...formData, trackingNumber: e.target.value });
+                if (fieldErrors.trackingNumber) setFieldErrors(prev => ({ ...prev, trackingNumber: undefined }));
+              }}
+              className={`w-full px-4 py-3 bg-slate-900 border-2 ${fieldErrors.trackingNumber ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-700 focus:ring-blue-500/50 focus:border-blue-500'} text-white rounded-xl focus:ring-4 font-mono`}
               placeholder="e.g., 1Z999AA10123456784" />
+            {fieldErrors.trackingNumber && (
+              <p className="mt-1.5 text-sm text-red-400 flex items-center gap-1.5">
+                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {fieldErrors.trackingNumber}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-2">Carrier (optional)</label>

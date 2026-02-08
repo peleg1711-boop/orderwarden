@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'OrderWarden - Etsy Order Protection',
@@ -51,10 +52,8 @@ export default function RootLayout({
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <p className="text-slate-400 text-sm">© 2026 OrderWarden. All rights reserved.</p>
                   <div className="flex items-center gap-6">
-                    {/* TODO: Add actual Terms of Service page */}
-                    <a href="#" className="text-slate-400 hover:text-white text-sm transition-colors">Terms of Service</a>
-                    {/* TODO: Add actual Privacy Policy page */}
-                    <a href="#" className="text-slate-400 hover:text-white text-sm transition-colors">Privacy Policy</a>
+                    <Link href="/terms" className="text-slate-400 hover:text-white text-sm transition-colors">Terms of Service</Link>
+                    <Link href="/privacy" className="text-slate-400 hover:text-white text-sm transition-colors">Privacy Policy</Link>
                     <a href="mailto:support@orderwarden.com" className="text-slate-400 hover:text-white text-sm transition-colors">Support</a>
                   </div>
                 </div>
