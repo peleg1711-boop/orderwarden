@@ -937,9 +937,10 @@ export default function DashboardPage() {
                     <button onClick={disconnectEtsy} className="text-slate-400 hover:text-red-400 text-sm" title="Disconnect Etsy">✕</button>
                   </div>
                 ) : (
-                  <button onClick={connectEtsy} className="bg-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm hover:bg-orange-400 transition-all">
-                    🔗 Connect Etsy
-                  </button>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 rounded-full border border-slate-600">
+                    <span className="text-sm text-amber-400 font-medium">🔗 Etsy Sync</span>
+                    <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold">Coming Soon</span>
+                  </div>
                 )}
                 <button onClick={() => setShowAddOrder(true)}
                   className="bg-blue-600 text-white px-6 py-3 rounded-full font-bold text-base hover:bg-blue-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-blue-500/50">

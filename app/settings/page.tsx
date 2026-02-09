@@ -168,10 +168,10 @@ export default function SettingsPage() {
       //   body: JSON.stringify(settings),
       // });
 
-      // Simulate save for now
+      // Settings are saved locally for now (backend integration coming soon)
       await new Promise(resolve => setTimeout(resolve, 500));
       setOriginalSettings(settings);
-      setToast({ message: 'Settings saved successfully', type: 'success' });
+      setToast({ message: 'Settings saved for this session', type: 'success' });
     } catch (err) {
       setToast({ message: 'Failed to save settings', type: 'error' });
     } finally {
@@ -235,7 +235,8 @@ export default function SettingsPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Notification Preferences */}
-        <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-6">
+        <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-6 relative">
+          <span className="absolute top-4 right-4 px-2 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-full">Coming Soon</span>
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -264,11 +265,11 @@ export default function SettingsPage() {
               description="Get notified when there's a tracking exception or delivery failure"
             />
           </div>
-          {/* TODO: Add actual email sending logic in backend */}
         </div>
 
         {/* Tracking Preferences */}
-        <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-6">
+        <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 mb-6 relative">
+          <span className="absolute top-4 right-4 px-2 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-full">Coming Soon</span>
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -333,12 +334,12 @@ export default function SettingsPage() {
               {etsyStatus.connected ? (
                 <span className="text-emerald-400 font-medium">{etsyStatus.shopName}</span>
               ) : (
-                <button
-                  onClick={connectEtsy}
-                  className="text-blue-400 hover:text-blue-300 font-medium"
-                >
-                  Connect Shop
-                </button>
+                <span className="text-amber-400 font-medium flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Coming Soon
+                </span>
               )}
             </div>
           </div>
