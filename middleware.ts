@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 
 const isPublicRoute = createRouteMatcher(["/landing", "/sign-in(.*)", "/sign-up(.*)"]);
 
-export default clerkMiddleware((auth, req) => {
-  const { userId } = auth();
+export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
 
   // If user is signed in and on sign-in/sign-up page, redirect to dashboard
   if (userId && (req.nextUrl.pathname === "/sign-in" || req.nextUrl.pathname === "/sign-up")) {

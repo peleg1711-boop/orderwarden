@@ -38,8 +38,8 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider
-      afterSignInUrl="/"
-      afterSignUpUrl="/"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
     >
       <html lang="en">
         <body className="min-h-screen flex flex-col bg-slate-900">
