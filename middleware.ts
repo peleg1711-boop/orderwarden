@@ -1,27 +1,25 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/landing", "/sign-in(.*)", "/sign-up(.*)"]);
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-export default clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth();
+  // Check for Clerk session cookie (set by ClerkProvider)
+  const hasSession = request.cookies.has("__session") || request.cookies.has("__clerk_db_jwt");
 
-  // If user is signed in and on sign-in/sign-up page, redirect to dashboard
-  if (userId && (req.nextUrl.pathname === "/sign-in" || req.nextUrl.pathname === "/sign-up")) {
-    return NextResponse.redirect(new URL("/", req.url));
+  // Signed-in users on sign-in/sign-up → redirect to dashboard
+  if (hasSession && (pathname === "/sign-in" || pathname === "/sign-up")) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // If user is not signed in and trying to access root, redirect to landing page
-  if (!userId && req.nextUrl.pathname === "/") {
-    return NextResponse.redirect(new URL("https://landing.orderwarden.com", req.url));
+  // Not signed in on root → redirect to landing page
+  if (!hasSession && pathname === "/") {
+    return NextResponse.redirect(new URL("https://landing.orderwarden.com", request.url));
   }
 
-  // Protect non-public routes
-  if (!isPublicRoute(req) && !userId) {
-    return NextResponse.redirect(new URL("https://landing.orderwarden.com", req.url));
-  }
-});
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)"],
 };
