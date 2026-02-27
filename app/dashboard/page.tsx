@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { UserButton, useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
-import { ConfirmationModal } from '../components/ConfirmationModal';
-import { NotificationBell } from '../components/NotificationBell';
+import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
