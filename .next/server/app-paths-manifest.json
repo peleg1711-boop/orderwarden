@@ -1,4 +1,12 @@
 {
-  "/not-found": "app/not-found.js",
-  "/page": "app/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/landing/page": "app/landing/page.js",
+  "/page": "app/page.js",
+  "/privacy/page": "app/privacy/page.js",
+  "/api/billing/create-checkout/route": "app/api/billing/create-checkout/route.js",
+  "/terms/page": "app/terms/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/icon/route": "app/icon/route.js",
+  "/apple-icon/route": "app/apple-icon/route.js",
+  "/opengraph-image/route": "app/opengraph-image/route.js"
 }

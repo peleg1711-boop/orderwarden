@@ -10,9 +10,11 @@ export function middleware(request: NextRequest) {
       request.cookies.has("__clerk_db_jwt");
 
     if (hasSession) {
+      // Authenticated users go to dashboard
       return NextResponse.rewrite(new URL("/dashboard", request.url));
     }
-    return NextResponse.rewrite(new URL("/landing.html", request.url));
+    // Unauthenticated users see the landing page
+    return NextResponse.rewrite(new URL("/landing", request.url));
   }
 
   return NextResponse.next();

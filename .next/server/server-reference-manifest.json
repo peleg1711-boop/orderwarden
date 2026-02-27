@@ -1,5 +1,1 @@
-{
-  "node": {},
-  "edge": {},
-  "encryptionKey": "YSlrTSfamDxhgdZ2ECA8JgGp0dSvj4hLuUclkTm8PBQ="
-}
+{"node":{"1b94811ca53a56b2ceded118b2fa651d92c66520":{"workers":{"app/_not-found/page":"2493","app/landing/page":"2493","app/page":"2493","app/privacy/page":"2493","app/terms/page":"2493","app/settings/page":"2493"},"layer":{"app/_not-found/page":"action-browser","app/landing/page":"action-browser","app/page":"action-browser","app/privacy/page":"action-browser","app/terms/page":"action-browser","app/settings/page":"action-browser"}}},"edge":{},"encryptionKey":"d6Z6QOcYAYdpmXoc53WVeLAUZTe2Cl/BdqkvuwA7I2w="}
